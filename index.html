@@ -265,6 +265,9 @@
         // 非対応ブラウザの場合：音声ボタンを非表示にする
         document.getElementById('voice-area').style.display = 'none';
       } else {
+        // 多重起動防止フラグ（true のとき認識中なので start() を呼ばない）
+        var isRecording = false;
+
         // 対応ブラウザの場合：音声認識オブジェクトを作成する
         var recognition = new SpeechRecognition();
 
@@ -322,13 +325,17 @@
 
         // 音声認識が終了したときの処理（ボタンのスタイルをリセットする）
         recognition.onend = function() {
+          // 多重起動フラグをリセットする
+          isRecording = false;
           // 録音中スタイルを削除する
           voiceBtn.classList.remove('recording');
           // ボタンのテキストを元に戻す
           voiceBtn.textContent = '🎤 音声入力（押している間）';
-          // ステータスを「録音完了」に変える
-          if (voiceStatus.textContent.startsWith('認識中')) {
-            voiceStatus.textContent = '録音完了';
+          // エラーメッセージが出ていない場合は「録音完了」にする
+          if (!voiceStatus.textContent.startsWith('エラー') &&
+              !voiceStatus.textContent.startsWith('マイク') &&
+              !voiceStatus.textContent.startsWith('音声が')) {
+            voiceStatus.textContent = '録音完了'; // 録音完了を表示する
           }
         };
 
@@ -336,6 +343,8 @@
 
         // マウスボタンを押し下げたとき（録音開始）
         voiceBtn.addEventListener('mousedown', function() {
+          if (isRecording) return;                          // 多重起動を防ぐ
+          isRecording = true;                               // 録音中フラグをONにする
           voiceStatus.textContent = '録音中...';           // ステータスを「録音中」に変える
           voiceBtn.classList.add('recording');              // 赤い点滅スタイルを追加する
           voiceBtn.textContent = '🔴 録音中（離したら停止）'; // ボタンテキストを変える
@@ -355,15 +364,22 @@
         // タッチ操作：タッチ開始時（スマホ・タブレット対応）
         voiceBtn.addEventListener('touchstart', function(e) {
           e.preventDefault();                               // デフォルトのタッチ動作を防ぐ
-          voiceStatus.textContent = '録音中...';
-          voiceBtn.classList.add('recording');
-          voiceBtn.textContent = '🔴 録音中（離したら停止）';
-          recognition.start();
+          if (isRecording) return;                          // 多重起動を防ぐ
+          isRecording = true;                               // 録音中フラグをONにする
+          voiceStatus.textContent = '録音中...';           // ステータスを「録音中」に変える
+          voiceBtn.classList.add('recording');              // 赤い点滅スタイルを追加する
+          voiceBtn.textContent = '🔴 録音中（離したら停止）'; // ボタンテキストを変える
+          recognition.start();                             // 音声認識を開始する
         });
 
         // タッチ操作：タッチ終了時（スマホ・タブレット対応）
         voiceBtn.addEventListener('touchend', function() {
           recognition.stop(); // 音声認識を停止する
+        });
+
+        // タッチ操作：タッチキャンセル時（電話着信・システム割り込みなどによる中断）
+        voiceBtn.addEventListener('touchcancel', function() {
+          recognition.stop(); // 音声認識を停止する（touchendが発火しないため必須）
         });
       }
     });

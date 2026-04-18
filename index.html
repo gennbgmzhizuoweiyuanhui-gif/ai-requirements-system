@@ -198,6 +198,94 @@
       font-size: 14px;            /* フォントサイズ */
       line-height: 1.6;           /* 行間 */
     }
+
+    /* ===== 出力エリアのヘッダー（タイトルとコピーボタンを横並び）===== */
+    #output-header {
+      display: flex;           /* 横並び */
+      justify-content: space-between; /* 左右に振り分ける */
+      align-items: center;     /* 縦中央揃え */
+      margin-bottom: 16px;     /* 下余白 */
+      padding-bottom: 8px;     /* 下内余白 */
+      border-bottom: 2px solid #bee3f8; /* 薄いブルー下線 */
+    }
+
+    /* ===== コピーボタン ===== */
+    #copy-btn {
+      background-color: #48bb78; /* グリーン */
+      color: white;              /* 白文字 */
+      padding: 8px 20px;         /* 内側余白 */
+      border: none;              /* 枠線なし */
+      border-radius: 6px;        /* 角丸 */
+      font-size: 14px;           /* フォントサイズ */
+      font-weight: bold;         /* 太字 */
+      cursor: pointer;           /* ポインターカーソル */
+      transition: background 0.2s; /* ホバーアニメーション */
+    }
+
+    /* ===== コピーボタン：ホバー時 ===== */
+    #copy-btn:hover {
+      background-color: #38a169; /* 少し暗いグリーン */
+    }
+
+    /* ===== コピー成功時のスタイル ===== */
+    #copy-btn.copied {
+      background-color: #2b6cb0; /* ブルーに変える */
+    }
+
+    /* ===== Markdownレンダリング結果の表示エリア ===== */
+    #output-content {
+      line-height: 1.8;   /* 読みやすい行間 */
+      font-size: 15px;    /* フォントサイズ */
+      color: #2d3748;     /* 文字色 */
+    }
+
+    /* ===== 見出し2（## ）のスタイル ===== */
+    #output-content h2 {
+      font-size: 18px;             /* フォントサイズ */
+      font-weight: bold;           /* 太字 */
+      color: #2b6cb0;              /* ブルー */
+      margin: 24px 0 12px;         /* 上下余白 */
+      padding-bottom: 6px;         /* 下内余白 */
+      border-bottom: 2px solid #bee3f8; /* 薄いブルー下線 */
+    }
+
+    /* ===== 見出し3（### ）のスタイル ===== */
+    #output-content h3 {
+      font-size: 16px;     /* フォントサイズ */
+      font-weight: bold;   /* 太字 */
+      color: #2c5282;      /* 少し暗いブルー */
+      margin: 16px 0 8px;  /* 上下余白 */
+    }
+
+    /* ===== 箇条書きリストのスタイル ===== */
+    #output-content ul {
+      padding-left: 24px;  /* 左インデント */
+      margin: 8px 0;       /* 上下余白 */
+    }
+
+    /* ===== 箇条書き各項目のスタイル ===== */
+    #output-content li {
+      margin-bottom: 6px;  /* 項目間の余白 */
+      line-height: 1.7;    /* 行間 */
+    }
+
+    /* ===== 太字（**テキスト**）のスタイル ===== */
+    #output-content strong {
+      color: #2d3748;      /* 文字色 */
+      font-weight: bold;   /* 太字 */
+    }
+
+    /* ===== 区切り線（---）のスタイル ===== */
+    #output-content hr {
+      border: none;                       /* デフォルト枠なし */
+      border-top: 1px solid #e2e8f0;      /* 薄いグレーの横線 */
+      margin: 20px 0;                     /* 上下余白 */
+    }
+
+    /* ===== 段落のスタイル ===== */
+    #output-content p {
+      margin: 8px 0;  /* 上下余白 */
+    }
   </style>
 </head>
 <body>
@@ -256,10 +344,21 @@
       <div id="error-area"></div>
     </div>
 
-    <!-- 出力エリアカード（後続タスクで中身を追加） -->
+    <!-- ===== 生成結果表示エリア ===== -->
     <div class="card" id="output-card" style="display:none;">
-      <div class="section-title">📄 生成された要件定義書</div>
-      <!-- Task 5 で出力内容を追加 -->
+      <!-- 出力エリアのヘッダー（タイトルとコピーボタン） -->
+      <div id="output-header">
+        <!-- 出力エリアのタイトル -->
+        <div class="section-title" style="margin-bottom:0; border-bottom:none; padding-bottom:0;">
+          📄 生成された要件定義書
+        </div>
+        <!-- Markdownをクリップボードにコピーするボタン -->
+        <button id="copy-btn" title="Markdown形式でクリップボードにコピーします">
+          📋 Markdownをコピー
+        </button>
+      </div>
+      <!-- Markdownをレンダリングして表示するエリア -->
+      <div id="output-content"></div>
     </div>
   </main>
 
@@ -613,6 +712,113 @@
         });
       }
     });
+
+    // ===== Markdownテキストを HTML に変換して表示する関数 =====
+    // この関数は外部ライブラリを使わず、正規表現で自前実装しています
+    function renderMarkdown(markdownText) {
+      // 出力先の要素を取得する
+      var outputContent = document.getElementById('output-content');
+
+      // ===== Markdownを行ごとに処理してHTMLに変換する =====
+
+      // 改行で分割して行の配列にする
+      var lines = markdownText.split('\n');
+
+      // 変換後のHTML文字列を入れる配列
+      var htmlLines = [];
+
+      // リスト（箇条書き）の開始・終了を管理するフラグ
+      var inList = false;
+
+      // 各行を順番に処理する
+      for (var i = 0; i < lines.length; i++) {
+        var line = lines[i];
+
+        // --- 見出し2（## で始まる行）---
+        if (line.startsWith('## ')) {
+          if (inList) {
+            htmlLines.push('</ul>'); // リストが開いていれば閉じる
+            inList = false;
+          }
+          // ## を除いたテキストをh2タグで囲む
+          htmlLines.push('<h2>' + escapeHtml(line.slice(3)) + '</h2>');
+        }
+
+        // --- 見出し3（### で始まる行）---
+        else if (line.startsWith('### ')) {
+          if (inList) {
+            htmlLines.push('</ul>');
+            inList = false;
+          }
+          // ### を除いたテキストをh3タグで囲む
+          htmlLines.push('<h3>' + escapeHtml(line.slice(4)) + '</h3>');
+        }
+
+        // --- 箇条書き（- で始まる行）---
+        else if (line.startsWith('- ') || line.startsWith('* ')) {
+          if (!inList) {
+            htmlLines.push('<ul>'); // リストをまだ開いていなければ開く
+            inList = true;
+          }
+          // 「- 」を除いたテキストをliタグで囲む（太字も処理する）
+          var itemText = line.slice(2);
+          htmlLines.push('<li>' + applyInlineMarkdown(escapeHtml(itemText)) + '</li>');
+        }
+
+        // --- 区切り線（--- ）---
+        else if (line.trim() === '---') {
+          if (inList) {
+            htmlLines.push('</ul>');
+            inList = false;
+          }
+          htmlLines.push('<hr>');
+        }
+
+        // --- 空行 ---
+        else if (line.trim() === '') {
+          if (inList) {
+            htmlLines.push('</ul>');
+            inList = false;
+          }
+          htmlLines.push(''); // 空行はそのままスキップ
+        }
+
+        // --- 通常のテキスト行 ---
+        else {
+          if (inList) {
+            htmlLines.push('</ul>');
+            inList = false;
+          }
+          // 通常のテキストをpタグで囲む（太字も処理する）
+          htmlLines.push('<p>' + applyInlineMarkdown(escapeHtml(line)) + '</p>');
+        }
+      }
+
+      // リストが末尾まで閉じられていなければ閉じる
+      if (inList) {
+        htmlLines.push('</ul>');
+      }
+
+      // 生成したHTML文字列をまとめて出力エリアに表示する
+      outputContent.innerHTML = htmlLines.join('\n');
+    }
+
+    // ===== インラインMarkdown（太字）を HTML に変換するヘルパー関数 =====
+    function applyInlineMarkdown(text) {
+      // **太字** を <strong>太字</strong> に変換する
+      return text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    }
+
+    // ===== HTMLの特殊文字をエスケープするヘルパー関数（XSS対策）=====
+    // ユーザー入力やAI出力をHTMLとして表示する際に必須の処理
+    function escapeHtml(text) {
+      return text
+        .replace(/&/g, '&amp;')   // & → &amp;
+        .replace(/</g, '&lt;')    // < → &lt;
+        .replace(/>/g, '&gt;')    // > → &gt;
+        .replace(/"/g, '&quot;')  // " → &quot;
+        .replace(/'/g, '&#039;'); // ' → &#039;
+    }
   </script>
 
 </body>

@@ -310,6 +310,7 @@
       id="api-key-input"
       placeholder="sk-ant-api03-..."
       title="Claude APIキーを入力してください"
+      autocomplete="off"
     >
   </header>
 
@@ -409,6 +410,11 @@
 
       // 生成ボタンをクリックしたときの処理
       generateBtn.addEventListener('click', async function() {
+
+        // 音声入力中の場合は先に停止する（同時動作を防ぐ）
+        if (typeof isRecording !== 'undefined' && isRecording && typeof recognition !== 'undefined') {
+          recognition.stop();
+        }
 
         // ===== 入力チェック =====
 

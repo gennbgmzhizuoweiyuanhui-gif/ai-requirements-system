@@ -146,6 +146,19 @@
       color: #718096;      /* グレー */
       margin-top: 4px;     /* 上余白 */
     }
+
+    /* ===== 音声入力ボタン：録音中の状態 ===== */
+    #voice-btn.recording {
+      background-color: #e53e3e; /* 録音中は赤色に変える */
+      animation: pulse 1s infinite; /* 点滅アニメーション */
+    }
+
+    /* ===== 録音中の点滅アニメーション定義 ===== */
+    @keyframes pulse {
+      0%   { opacity: 1; }    /* 完全表示 */
+      50%  { opacity: 0.6; }  /* 半透明 */
+      100% { opacity: 1; }    /* 完全表示に戻る */
+    }
   </style>
 </head>
 <body>
@@ -236,6 +249,123 @@
         // Task 4 で Claude API 呼び出し処理を追加する
         alert('（開発中）APIを呼び出します');
       });
+
+      // ===== 音声入力機能（Web Speech API）=====
+
+      // 音声入力ボタンの要素を取得する
+      var voiceBtn = document.getElementById('voice-btn');
+      // 録音中ステータス表示の要素を取得する
+      var voiceStatus = document.getElementById('voice-status');
+
+      // Web Speech APIがブラウザで使えるか確認する
+      // Chrome / Edge は対応、Firefox は非対応
+      var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+      if (!SpeechRecognition) {
+        // 非対応ブラウザの場合：音声ボタンを非表示にする
+        document.getElementById('voice-area').style.display = 'none';
+      } else {
+        // 対応ブラウザの場合：音声認識オブジェクトを作成する
+        var recognition = new SpeechRecognition();
+
+        // 日本語で認識するように設定する
+        recognition.lang = 'ja-JP';
+
+        // 連続して認識し続けるモードにする（ボタンを離すまで継続）
+        recognition.continuous = true;
+
+        // 途中結果も取得するように設定する（リアルタイム表示のため）
+        recognition.interimResults = true;
+
+        // 音声認識中にテキストが取得できたときの処理
+        recognition.onresult = function(event) {
+          // 途中結果（まだ確定していない文字）を収集する
+          var interimText = '';
+          // 確定した文字を収集する
+          var finalText = '';
+
+          // 全ての認識結果をループして確定・途中を仕分ける
+          for (var i = event.resultIndex; i < event.results.length; i++) {
+            if (event.results[i].isFinal) {
+              // 確定した文字（確実に認識できた部分）
+              finalText += event.results[i][0].transcript;
+            } else {
+              // 途中結果（まだ認識中の部分）
+              interimText += event.results[i][0].transcript;
+            }
+          }
+
+          // 確定した文字をテキストエリアに追記する
+          if (finalText) {
+            textarea.value += finalText;
+            // 文字数カウンターを更新する
+            charCount.textContent = textarea.value.length + ' 文字';
+          }
+
+          // 途中結果をステータス欄に表示する（リアルタイムフィードバック）
+          if (interimText) {
+            voiceStatus.textContent = '認識中：' + interimText;
+          }
+        };
+
+        // 音声認識でエラーが発生したときの処理
+        recognition.onerror = function(event) {
+          // エラーの種類によってメッセージを出し分ける
+          if (event.error === 'no-speech') {
+            voiceStatus.textContent = '音声が検出されませんでした';
+          } else if (event.error === 'not-allowed') {
+            voiceStatus.textContent = 'マイクの使用が許可されていません';
+          } else {
+            voiceStatus.textContent = 'エラーが発生しました：' + event.error;
+          }
+        };
+
+        // 音声認識が終了したときの処理（ボタンのスタイルをリセットする）
+        recognition.onend = function() {
+          // 録音中スタイルを削除する
+          voiceBtn.classList.remove('recording');
+          // ボタンのテキストを元に戻す
+          voiceBtn.textContent = '🎤 音声入力（押している間）';
+          // ステータスを「録音完了」に変える
+          if (voiceStatus.textContent.startsWith('認識中')) {
+            voiceStatus.textContent = '録音完了';
+          }
+        };
+
+        // ===== 音声入力ボタンの「押している間だけ録音」を実装する =====
+
+        // マウスボタンを押し下げたとき（録音開始）
+        voiceBtn.addEventListener('mousedown', function() {
+          voiceStatus.textContent = '録音中...';           // ステータスを「録音中」に変える
+          voiceBtn.classList.add('recording');              // 赤い点滅スタイルを追加する
+          voiceBtn.textContent = '🔴 録音中（離したら停止）'; // ボタンテキストを変える
+          recognition.start();                             // 音声認識を開始する
+        });
+
+        // マウスボタンを離したとき（録音停止）
+        voiceBtn.addEventListener('mouseup', function() {
+          recognition.stop(); // 音声認識を停止する
+        });
+
+        // マウスがボタン外に出たとき（録音停止：押したまま外に出た場合の対処）
+        voiceBtn.addEventListener('mouseleave', function() {
+          recognition.stop(); // 音声認識を停止する
+        });
+
+        // タッチ操作：タッチ開始時（スマホ・タブレット対応）
+        voiceBtn.addEventListener('touchstart', function(e) {
+          e.preventDefault();                               // デフォルトのタッチ動作を防ぐ
+          voiceStatus.textContent = '録音中...';
+          voiceBtn.classList.add('recording');
+          voiceBtn.textContent = '🔴 録音中（離したら停止）';
+          recognition.start();
+        });
+
+        // タッチ操作：タッチ終了時（スマホ・タブレット対応）
+        voiceBtn.addEventListener('touchend', function() {
+          recognition.stop(); // 音声認識を停止する
+        });
+      }
     });
   </script>
 

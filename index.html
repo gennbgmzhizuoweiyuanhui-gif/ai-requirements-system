@@ -131,8 +131,8 @@
         apiKeyInput.value = savedKey; // 保存済みキーを復元
       }
 
-      // APIキーが変更されたらlocalStorageに保存する
-      apiKeyInput.addEventListener('change', function() {
+      // APIキーが入力されるたびにlocalStorageに保存する（blurを待たずに即保存）
+      apiKeyInput.addEventListener('input', function() {
         localStorage.setItem('claude_api_key', apiKeyInput.value);
       });
     });

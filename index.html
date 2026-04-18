@@ -717,69 +717,86 @@
       // コピーボタンの要素を取得する
       var copyBtn = document.getElementById('copy-btn');
 
-      // コピーボタンをクリックしたときの処理
-      copyBtn.addEventListener('click', function() {
+      // copy-btn が存在しない場合は処理を行わない（防御的チェック）
+      if (copyBtn) {
 
-        // グローバル変数に保存されたMarkdownテキストを取得する
-        var textToCopy = window.generatedMarkdown;
+        // 連続クリック時にSetTimeoutが重複しないようタイマーIDを管理する
+        var copyResetTimer = null;
 
-        // コピーするテキストがない場合は何もしない
-        if (!textToCopy) {
-          return;
-        }
+        // コピーボタンをクリックしたときの処理
+        copyBtn.addEventListener('click', function() {
 
-        // クリップボードAPIを使ってコピーする
-        // navigator.clipboard は HTTPS または localhost でのみ動作する
-        if (navigator.clipboard && window.isSecureContext) {
-          // クリップボードAPIが使える場合（推奨）
-          navigator.clipboard.writeText(textToCopy).then(function() {
-            // コピー成功時のフィードバック
-            copyBtn.textContent = '✅ コピーしました！';
-            copyBtn.classList.add('copied');
-            // 2秒後に元のテキストに戻す
-            setTimeout(function() {
-              copyBtn.textContent = '📋 Markdownをコピー';
-              copyBtn.classList.remove('copied');
-            }, 2000);
-          }).catch(function() {
-            // クリップボードAPIが失敗した場合はフォールバックを使う
+          // グローバル変数に保存されたMarkdownテキストを取得する
+          var textToCopy = window.generatedMarkdown;
+
+          // コピーするテキストがない場合は何もしない
+          if (!textToCopy) {
+            return;
+          }
+
+          // 前回のタイマーが残っていればキャンセルする（連続クリック対策）
+          if (copyResetTimer) {
+            clearTimeout(copyResetTimer); // 前のタイマーを止める
+            copyResetTimer = null;        // タイマーIDをリセットする
+          }
+
+          // クリップボードAPIを使ってコピーする
+          // navigator.clipboard は HTTPS または localhost でのみ動作する
+          if (navigator.clipboard && window.isSecureContext) {
+            // クリップボードAPIが使える場合（推奨）
+            navigator.clipboard.writeText(textToCopy).then(function() {
+              // コピー成功時のフィードバックを表示する
+              showCopySuccess();
+            }).catch(function() {
+              // クリップボードAPIが失敗した場合はフォールバックを使う
+              fallbackCopy(textToCopy);
+            });
+          } else {
+            // HTTP環境など、クリップボードAPIが使えない場合のフォールバック
             fallbackCopy(textToCopy);
-          });
-        } else {
-          // HTTP環境など、クリップボードAPIが使えない場合のフォールバック
-          fallbackCopy(textToCopy);
-        }
-      });
+          }
+        });
 
-      // ===== クリップボードAPIが使えない環境でのコピー処理（フォールバック）=====
-      function fallbackCopy(text) {
-        // 一時的な非表示テキストエリアを作成する
-        var tempTextarea = document.createElement('textarea');
-        tempTextarea.value = text;
-        // 画面外に配置して見えないようにする
-        tempTextarea.style.position = 'fixed';
-        tempTextarea.style.left = '-9999px';
-        tempTextarea.style.top = '-9999px';
-        document.body.appendChild(tempTextarea);
-        tempTextarea.focus();
-        tempTextarea.select(); // テキスト全体を選択する
-        // 古いコピーコマンドを実行する
-        var success = document.execCommand('copy');
-        document.body.removeChild(tempTextarea); // 一時要素を削除する
-
-        if (success) {
-          // コピー成功フィードバック
+        // ===== コピー成功時のフィードバック表示（共通処理）=====
+        function showCopySuccess() {
+          // ボタンのテキストを「コピーしました！」に変える
           copyBtn.textContent = '✅ コピーしました！';
+          // 青色スタイルを適用する
           copyBtn.classList.add('copied');
-          setTimeout(function() {
-            copyBtn.textContent = '📋 Markdownをコピー';
-            copyBtn.classList.remove('copied');
+          // 2秒後に元のテキストに戻す（タイマーIDを保存して重複を防ぐ）
+          copyResetTimer = setTimeout(function() {
+            copyBtn.textContent = '📋 Markdownをコピー'; // 元のテキストに戻す
+            copyBtn.classList.remove('copied');           // 青色スタイルを解除する
+            copyResetTimer = null;                        // タイマーIDをクリアする
           }, 2000);
-        } else {
-          // コピー失敗時のメッセージ
-          alert('コピーに失敗しました。\n手動でテキストを選択してCtrl+Cでコピーしてください。');
         }
-      }
+
+        // ===== クリップボードAPIが使えない環境でのコピー処理（フォールバック）=====
+        function fallbackCopy(text) {
+          // 一時的な非表示テキストエリアを作成する
+          var tempTextarea = document.createElement('textarea');
+          tempTextarea.value = text;             // コピーするテキストを設定する
+          // 画面外に配置して見えないようにする（display:noneではselect()が動かないためfixedを使う）
+          tempTextarea.style.position = 'fixed';
+          tempTextarea.style.left = '-9999px';   // 画面左端の外側に配置する
+          tempTextarea.style.top = '-9999px';    // 画面上端の外側に配置する
+          document.body.appendChild(tempTextarea); // DOMに追加する（select()に必要）
+          tempTextarea.focus();                  // テキストエリアにフォーカスを当てる
+          tempTextarea.select();                 // テキスト全体を選択する
+          // 古いコピーコマンドを実行する（IE・一部ブラウザ向けレガシー方式）
+          var success = document.execCommand('copy');
+          document.body.removeChild(tempTextarea); // 使い終わったテキストエリアを削除する
+
+          if (success) {
+            // コピー成功フィードバックを表示する
+            showCopySuccess();
+          } else {
+            // コピー失敗時はアラートで手動コピーを案内する
+            alert('コピーに失敗しました。\n手動でテキストを選択してCtrl+Cでコピーしてください。');
+          }
+        }
+
+      } // if (copyBtn) end
     });
 
     // ===== Markdownテキストを HTML に変換して表示する関数 =====

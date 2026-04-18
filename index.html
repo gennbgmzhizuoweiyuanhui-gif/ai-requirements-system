@@ -159,6 +159,45 @@
       50%  { opacity: 0.6; }  /* 半透明 */
       100% { opacity: 1; }    /* 完全表示に戻る */
     }
+
+    /* ===== ローディングスピナー（API呼び出し中に表示） ===== */
+    #loading-area {
+      display: none;         /* 通常は非表示 */
+      text-align: center;    /* 中央揃え */
+      padding: 32px;         /* 余白 */
+      color: #2b6cb0;        /* ブルー文字 */
+      font-size: 16px;       /* フォントサイズ */
+    }
+
+    /* ===== くるくる回るスピナーのアニメーション ===== */
+    .spinner {
+      display: inline-block;  /* インラインブロック */
+      width: 36px;            /* 幅 */
+      height: 36px;           /* 高さ */
+      border: 4px solid #bee3f8;         /* 薄いブルーの枠線 */
+      border-top-color: #2b6cb0;         /* 上だけ濃いブルー（回転して見える） */
+      border-radius: 50%;                /* 円形にする */
+      animation: spin 0.8s linear infinite; /* 0.8秒で1回転 */
+      margin-bottom: 12px;   /* 下余白 */
+    }
+
+    /* ===== スピナーの回転アニメーション定義 ===== */
+    @keyframes spin {
+      to { transform: rotate(360deg); } /* 360度回転 */
+    }
+
+    /* ===== エラーメッセージ表示エリア ===== */
+    #error-area {
+      display: none;              /* 通常は非表示 */
+      background-color: #fff5f5;  /* 薄い赤背景 */
+      border: 1px solid #feb2b2;  /* 赤枠線 */
+      border-radius: 8px;         /* 角丸 */
+      padding: 16px;              /* 内側余白 */
+      color: #c53030;             /* 赤文字 */
+      margin-top: 16px;           /* 上余白 */
+      font-size: 14px;            /* フォントサイズ */
+      line-height: 1.6;           /* 行間 */
+    }
   </style>
 </head>
 <body>
@@ -205,6 +244,16 @@
       <button class="btn" id="generate-btn">
         ✨ 要件定義書を生成する
       </button>
+
+      <!-- ローディング表示（API呼び出し中に表示される） -->
+      <div id="loading-area">
+        <!-- くるくるスピナー -->
+        <div class="spinner"></div>
+        <div>Claude AIが要件定義書を生成しています...<br>しばらくお待ちください（10〜30秒程度）</div>
+      </div>
+
+      <!-- エラーメッセージ表示エリア -->
+      <div id="error-area"></div>
     </div>
 
     <!-- 出力エリアカード（後続タスクで中身を追加） -->
@@ -244,10 +293,170 @@
         charCount.textContent = textarea.value.length + ' 文字';
       });
 
-      // 生成ボタンをクリックしたときの処理（Task 4 で実装）
-      generateBtn.addEventListener('click', function() {
-        // Task 4 で Claude API 呼び出し処理を追加する
-        alert('（開発中）APIを呼び出します');
+      // 生成ボタンをクリックしたときの処理
+      generateBtn.addEventListener('click', async function() {
+
+        // ===== 入力チェック =====
+
+        // APIキーが入力されているか確認する
+        var apiKey = apiKeyInput.value.trim();
+        if (!apiKey) {
+          alert('APIキーを入力してください。\nヘッダーの「Claude APIキー」欄に入力してください。');
+          apiKeyInput.focus(); // APIキー入力欄にカーソルを移動する
+          return; // 処理を中断する
+        }
+
+        // テキストが入力されているか確認する
+        var inputText = textarea.value.trim();
+        if (!inputText) {
+          alert('要件の内容を入力してください。\n音声入力またはテキスト入力で現場の状況を入力してください。');
+          textarea.focus(); // テキストエリアにカーソルを移動する
+          return; // 処理を中断する
+        }
+
+        // ===== UI の状態を「生成中」に変える =====
+
+        // 生成ボタンを非活性にする（二重クリック防止）
+        generateBtn.disabled = true;
+        generateBtn.textContent = '⏳ 生成中...';
+
+        // ローディング表示を見せる
+        document.getElementById('loading-area').style.display = 'block';
+
+        // エラーエリアを非表示にする（前回のエラーをクリアする）
+        var errorArea = document.getElementById('error-area');
+        errorArea.style.display = 'none';
+        errorArea.textContent = '';
+
+        // 出力カードをいったん非表示にする
+        document.getElementById('output-card').style.display = 'none';
+
+        try {
+          // ===== Claude API にリクエストを送る =====
+
+          // Claude API のエンドポイントURL
+          var apiUrl = 'https://api.anthropic.com/v1/messages';
+
+          // APIに送るリクエストの内容を作成する
+          var requestBody = {
+            // 使用するClaudeモデル（指定されたモデルを使う）
+            model: 'claude-sonnet-4-20250514',
+
+            // 最大生成トークン数（長い要件定義書でも出力できるよう多めに設定）
+            max_tokens: 4000,
+
+            // システムプロンプト：Claudeへの指示（出力形式を固定する）
+            system: `あなたはITシステムの要件定義の専門家です。
+現場担当者から聞いた曖昧な発話・要望をもとに、
+エンジニアが開発を始められる精密な要件定義書をMarkdown形式で作成してください。
+
+必ず以下の6セクションをすべて含めてください。セクション名は正確に記載してください：
+
+## システム名
+（提案するシステムの名称。わかりやすい日本語で）
+
+## 目的・背景
+（なぜこのシステムが必要か、現状の課題と解決したいこと）
+
+## 機能要件
+（システムが「何をするか」を箇条書きで具体的に記述。- で始める）
+
+## 非機能要件
+（性能・セキュリティ・使いやすさ・対応デバイスなど。- で始める）
+
+## 用語定義
+（このシステムで使う専門用語・業界用語の定義。- 用語：説明 の形式で）
+
+## 備考・確認事項
+（不明点、要確認事項、今後の検討事項。- で始める）
+
+---
+
+注意事項：
+- 建設業・現場担当者が話す言葉から本質的な要件を読み取ってください
+- 曖昧な表現は合理的に補完してください
+- 箇条書きは具体的・実装可能な粒度で記述してください
+- 日本語で出力してください`,
+
+            // ユーザーからのメッセージ（入力されたテキストをそのまま渡す）
+            messages: [
+              {
+                role: 'user',
+                content: '以下の現場の状況・要望をもとに要件定義書を作成してください。\n\n' + inputText
+              }
+            ]
+          };
+
+          // fetch API を使って Claude API にPOSTリクエストを送る
+          var response = await fetch(apiUrl, {
+            method: 'POST', // HTTPメソッドはPOST
+            headers: {
+              'Content-Type': 'application/json',         // JSONデータを送ることを宣言
+              'x-api-key': apiKey,                        // APIキーを認証ヘッダーに設定
+              'anthropic-version': '2023-06-01',          // APIのバージョンを指定
+              'anthropic-dangerous-direct-browser-calls': 'true' // ブラウザからの直接呼び出しを許可
+            },
+            body: JSON.stringify(requestBody) // リクエストボディをJSON文字列に変換
+          });
+
+          // レスポンスが正常でない場合（4xx/5xxエラー）の処理
+          if (!response.ok) {
+            var errorData = await response.json();
+            // エラー内容を日本語で表示する
+            var errorMsg = 'APIエラーが発生しました（HTTPステータス：' + response.status + '）\n';
+            if (response.status === 401) {
+              errorMsg += 'APIキーが無効です。正しいAPIキーを入力してください。';
+            } else if (response.status === 429) {
+              errorMsg += 'APIの利用制限に達しました。しばらく待ってから再試行してください。';
+            } else if (response.status === 400) {
+              errorMsg += 'リクエストの形式が不正です。入力内容を確認してください。';
+            } else {
+              errorMsg += (errorData.error && errorData.error.message) ? errorData.error.message : '不明なエラー';
+            }
+            throw new Error(errorMsg);
+          }
+
+          // レスポンスをJSONとして解析する
+          var data = await response.json();
+
+          // Claudeの返答テキストを取得する
+          var markdownText = data.content[0].text;
+
+          // 生成したMarkdownテキストをグローバル変数に保存する（コピーボタン用）
+          window.generatedMarkdown = markdownText;
+
+          // 出力カードを表示する
+          document.getElementById('output-card').style.display = 'block';
+
+          // Task 5 で実装するレンダリング関数を呼び出す
+          if (typeof renderMarkdown === 'function') {
+            renderMarkdown(markdownText); // Markdownを整形して表示する
+          } else {
+            // Task 5 実装前の仮表示（プレーンテキスト）
+            document.getElementById('output-content').textContent = markdownText;
+          }
+
+          // 出力エリアまでスクロールする（見えやすいように）
+          document.getElementById('output-card').scrollIntoView({ behavior: 'smooth' });
+
+        } catch (error) {
+          // ===== エラーが発生した場合の処理 =====
+
+          // エラーメッセージを赤いエリアに表示する
+          // error.message はこのコード内で生成した文字列なのでXSSリスクなし
+          errorArea.style.display = 'block';
+          errorArea.innerHTML = '⚠️ ' + error.message.replace(/\n/g, '<br>');
+
+        } finally {
+          // ===== 処理完了後（成功・失敗どちらでも）UIを元に戻す =====
+
+          // ローディング表示を非表示にする
+          document.getElementById('loading-area').style.display = 'none';
+
+          // 生成ボタンを再び活性化する
+          generateBtn.disabled = false;
+          generateBtn.textContent = '✨ 要件定義書を生成する';
+        }
       });
 
       // ===== 音声入力機能（Web Speech API）=====

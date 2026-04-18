@@ -287,6 +287,8 @@
       var charCount = document.getElementById('char-count');
       // 生成ボタンの要素を取得する
       var generateBtn = document.getElementById('generate-btn');
+      // 生成ボタンの元のテキストを保存しておく（finally で確実に復元するため）
+      var originalBtnText = generateBtn.textContent.trim();
 
       // テキストが入力されるたびに文字数を更新する
       textarea.addEventListener('input', function() {
@@ -401,7 +403,6 @@
 
           // レスポンスが正常でない場合（4xx/5xxエラー）の処理
           if (!response.ok) {
-            var errorData = await response.json();
             // エラー内容を日本語で表示する
             var errorMsg = 'APIエラーが発生しました（HTTPステータス：' + response.status + '）\n';
             if (response.status === 401) {
@@ -411,7 +412,13 @@
             } else if (response.status === 400) {
               errorMsg += 'リクエストの形式が不正です。入力内容を確認してください。';
             } else {
-              errorMsg += (errorData.error && errorData.error.message) ? errorData.error.message : '不明なエラー';
+              // APIのエラーレスポンスをJSONで解析する（失敗してもクラッシュしないようにする）
+              try {
+                var errorData = await response.json();
+                errorMsg += (errorData.error && errorData.error.message) ? errorData.error.message : '不明なエラー';
+              } catch (_) {
+                errorMsg += 'サーバーからのレスポンスを解析できませんでした。'; // JSON以外のレスポンスが返った場合
+              }
             }
             throw new Error(errorMsg);
           }
@@ -419,8 +426,11 @@
           // レスポンスをJSONとして解析する
           var data = await response.json();
 
-          // Claudeの返答テキストを取得する
-          var markdownText = data.content[0].text;
+          // Claudeの返答テキストを取得する（レスポンス構造を安全に確認する）
+          if (!data.content || !data.content[0] || !data.content[0].text) {
+            throw new Error('APIから有効なレスポンスが返りませんでした。もう一度お試しください。');
+          }
+          var markdownText = data.content[0].text; // 返答テキストを取り出す
 
           // 生成したMarkdownテキストをグローバル変数に保存する（コピーボタン用）
           window.generatedMarkdown = markdownText;
@@ -442,10 +452,21 @@
         } catch (error) {
           // ===== エラーが発生した場合の処理 =====
 
-          // エラーメッセージを赤いエリアに表示する
-          // error.message はこのコード内で生成した文字列なのでXSSリスクなし
+          // ネットワークエラー（インターネット未接続など）を日本語で補足する
+          var displayMessage = error.message;
+          if (error instanceof TypeError) {
+            displayMessage = 'ネットワークエラーが発生しました。インターネット接続を確認してください。\n（詳細：' + error.message + '）';
+          }
+
+          // エラーメッセージを安全にDOMノードとして追加する（XSS対策：innerHTMLを使わない）
           errorArea.style.display = 'block';
-          errorArea.innerHTML = '⚠️ ' + error.message.replace(/\n/g, '<br>');
+          errorArea.textContent = ''; // 前回のエラーをクリアする
+          var prefix = document.createTextNode('⚠️ '); // プレフィックスをテキストノードで追加する
+          errorArea.appendChild(prefix);
+          displayMessage.split('\n').forEach(function(line, i) {
+            if (i > 0) errorArea.appendChild(document.createElement('br')); // 改行をbrタグで挿入する
+            errorArea.appendChild(document.createTextNode(line)); // 各行をテキストノードで追加する（HTML注入不可）
+          });
 
         } finally {
           // ===== 処理完了後（成功・失敗どちらでも）UIを元に戻す =====
@@ -453,9 +474,9 @@
           // ローディング表示を非表示にする
           document.getElementById('loading-area').style.display = 'none';
 
-          // 生成ボタンを再び活性化する
+          // 生成ボタンを再び活性化する（保存しておいた元のテキストに戻す）
           generateBtn.disabled = false;
-          generateBtn.textContent = '✨ 要件定義書を生成する';
+          generateBtn.textContent = originalBtnText; // 保存済みの元テキストを復元する
         }
       });
 

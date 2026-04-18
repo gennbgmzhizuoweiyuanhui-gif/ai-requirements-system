@@ -734,24 +734,24 @@
       for (var i = 0; i < lines.length; i++) {
         var line = lines[i];
 
-        // --- 見出し2（## で始まる行）---
-        if (line.startsWith('## ')) {
+        // --- 見出し3（### で始まる行）--- ※ ## より先にチェックしないと誤判定する
+        if (line.startsWith('### ')) {
           if (inList) {
             htmlLines.push('</ul>'); // リストが開いていれば閉じる
             inList = false;
           }
-          // ## を除いたテキストをh2タグで囲む
-          htmlLines.push('<h2>' + escapeHtml(line.slice(3)) + '</h2>');
+          // ### を除いたテキストをh3タグで囲む
+          htmlLines.push('<h3>' + escapeHtml(line.slice(4)) + '</h3>');
         }
 
-        // --- 見出し3（### で始まる行）---
-        else if (line.startsWith('### ')) {
+        // --- 見出し2（## で始まる行）---
+        else if (line.startsWith('## ')) {
           if (inList) {
             htmlLines.push('</ul>');
             inList = false;
           }
-          // ### を除いたテキストをh3タグで囲む
-          htmlLines.push('<h3>' + escapeHtml(line.slice(4)) + '</h3>');
+          // ## を除いたテキストをh2タグで囲む
+          htmlLines.push('<h2>' + escapeHtml(line.slice(3)) + '</h2>');
         }
 
         // --- 箇条書き（- で始まる行）---

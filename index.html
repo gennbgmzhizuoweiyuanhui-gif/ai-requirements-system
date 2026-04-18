@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<!-- AI要件定義システム：現場の曖昧な発話を要件定義書に変換するWebアプリ -->
+<html lang="ja">
+<head>
+  <!-- 文字コードをUTF-8に設定（日本語対応） -->
+  <meta charset="UTF-8">
+  <!-- スマホ・タブレットでも正しく表示されるようにビューポートを設定 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- ブラウザのタブに表示されるタイトル -->
+  <title>AI要件定義システム</title>
+  <style>
+    /* ===== 全体リセット：ブラウザごとのデフォルトスタイルをそろえる ===== */
+    * {
+      box-sizing: border-box; /* パディングをサイズに含める */
+      margin: 0;              /* 余白をゼロリセット */
+      padding: 0;             /* 内側余白をゼロリセット */
+    }
+
+    /* ===== ページ全体のスタイル ===== */
+    body {
+      font-family: 'Meiryo', 'メイリオ', 'Hiragino Sans', sans-serif; /* 日本語フォント */
+      font-size: 16px;           /* 基本フォントサイズ */
+      background-color: #f0f4f8; /* 薄いグレー背景 */
+      color: #2d3748;            /* 文字色：濃いグレー */
+      min-height: 100vh;         /* 画面いっぱいの高さ */
+    }
+
+    /* ===== ヘッダー部分 ===== */
+    header {
+      background-color: #2b6cb0; /* 建設業らしい落ち着いたブルー */
+      color: white;              /* 文字色：白 */
+      padding: 16px 24px;        /* 内側余白 */
+      display: flex;             /* 横並びレイアウト */
+      align-items: center;       /* 縦方向中央揃え */
+      flex-wrap: wrap;           /* 画面が狭いときは折り返す */
+      gap: 12px;                 /* 要素間の隙間 */
+    }
+
+    /* ===== ヘッダーのタイトル文字 ===== */
+    header h1 {
+      font-size: 20px;  /* タイトルのフォントサイズ */
+      flex: 1;          /* 残りスペースを占有する */
+    }
+
+    /* ===== APIキー入力欄のラベル ===== */
+    #api-key-label {
+      font-size: 13px; /* 小さめのラベル文字 */
+      white-space: nowrap; /* 折り返さない */
+    }
+
+    /* ===== APIキー入力テキストボックス ===== */
+    #api-key-input {
+      padding: 8px 12px;         /* 内側余白 */
+      border: none;              /* 枠線なし */
+      border-radius: 6px;        /* 角丸 */
+      font-size: 14px;           /* フォントサイズ */
+      width: 280px;              /* 横幅 */
+      background-color: #ebf4ff; /* 薄いブルー背景 */
+      color: #2d3748;            /* 文字色 */
+    }
+
+    /* ===== メインコンテンツエリア ===== */
+    main {
+      max-width: 860px;    /* 最大横幅 */
+      margin: 32px auto;   /* 上下余白＋左右自動で中央揃え */
+      padding: 0 16px;     /* 左右の余白（スマホ対応） */
+    }
+
+    /* ===== セクションカード（入力・出力エリアの白いボックス） ===== */
+    .card {
+      background-color: white;  /* 白背景 */
+      border-radius: 10px;      /* 角丸 */
+      padding: 24px;            /* 内側余白 */
+      margin-bottom: 24px;      /* カード間の隙間 */
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08); /* 薄い影 */
+    }
+
+    /* ===== セクションタイトル ===== */
+    .section-title {
+      font-size: 15px;         /* フォントサイズ */
+      font-weight: bold;       /* 太字 */
+      color: #2b6cb0;          /* ブルー */
+      margin-bottom: 16px;     /* 下余白 */
+      padding-bottom: 8px;     /* 下内余白 */
+      border-bottom: 2px solid #bee3f8; /* 薄いブルーの下線 */
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===== ヘッダー：タイトルとAPIキー入力 ===== -->
+  <header>
+    <!-- アプリのタイトル -->
+    <h1>🏗 AI要件定義システム</h1>
+    <!-- APIキー入力ラベル -->
+    <span id="api-key-label">Claude APIキー：</span>
+    <!-- APIキー入力欄（セキュリティのためtype="password"にして見えないようにする） -->
+    <input
+      type="password"
+      id="api-key-input"
+      placeholder="sk-ant-api03-..."
+      title="Claude APIキーを入力してください"
+    >
+  </header>
+
+  <!-- ===== メインコンテンツ ===== -->
+  <main>
+    <!-- 入力エリアカード（後続タスクで中身を追加） -->
+    <div class="card">
+      <div class="section-title">📝 現場の状況・要望を入力</div>
+      <!-- Task 2 で音声・テキスト入力を追加 -->
+    </div>
+
+    <!-- 出力エリアカード（後続タスクで中身を追加） -->
+    <div class="card" id="output-card" style="display:none;">
+      <div class="section-title">📄 生成された要件定義書</div>
+      <!-- Task 5 で出力内容を追加 -->
+    </div>
+  </main>
+
+  <script>
+    // ===== JavaScriptの初期化処理 =====
+    // DOMが読み込まれた後に実行する
+    document.addEventListener('DOMContentLoaded', function() {
+      // APIキー入力欄の要素を取得する
+      var apiKeyInput = document.getElementById('api-key-input');
+
+      // ページ読み込み時にlocalStorageからAPIキーを復元する（入力の手間を省く）
+      var savedKey = localStorage.getItem('claude_api_key');
+      if (savedKey) {
+        apiKeyInput.value = savedKey; // 保存済みキーを復元
+      }
+
+      // APIキーが変更されたらlocalStorageに保存する
+      apiKeyInput.addEventListener('change', function() {
+        localStorage.setItem('claude_api_key', apiKeyInput.value);
+      });
+    });
+  </script>
+
+</body>
+</html>

@@ -6,13 +6,14 @@
 // ============================================================
 
 // Node.js 標準モジュールを読み込む
-var http  = require('http'); // ブラウザからのリクエストを受け付けるHTTPサーバー
-var https = require('https'); // Anthropic APIへのHTTPSリクエストを送るモジュール
-var path  = require('path');  // ファイルパス操作
-var fs    = require('fs');    // ファイル読み込み（静的ファイル配信用）
+var http         = require('http');         // ブラウザからのリクエストを受け付けるHTTPサーバー
+var https        = require('https');        // Anthropic APIへのHTTPSリクエストを送るモジュール
+var path         = require('path');         // ファイルパス操作
+var fs           = require('fs');           // ファイル読み込み（静的ファイル配信用）
+var childProcess = require('child_process'); // ブラウザ自動起動用
 
-// プロキシサーバーが待ち受けるポート番号
-var PORT = 3001;
+// プロキシサーバーが最初に試みるポート番号
+var BASE_PORT = 3001;
 
 // ===== EXE化対応：静的ファイルの基準ディレクトリを決定する =====
 // pkg でビルドした EXE として実行中は process.pkg が truthy になる。
@@ -246,11 +247,40 @@ var server = http.createServer(function(req, res) {
   });
 });
 
-// ===== サーバーを起動する =====
-server.listen(PORT, function() {
+// ===== 空きポートを探してサーバーを起動する =====
+// 指定ポートが使用中なら次のポートを試す（最大100ポートまで）
+server.on('error', function(err) {
+  if (err.code === 'EADDRINUSE') {
+    var usedPort = server.address ? server.address().port : '?';
+    // まだ listen していない場合は err.port から取れる
+    var tryPort = (err.port || usedPort || BASE_PORT) + 1;
+    if (tryPort > BASE_PORT + 99) {
+      console.error('空きポートが見つかりませんでした（' + BASE_PORT + '〜' + (BASE_PORT + 99) + '）');
+      process.exit(1);
+    }
+    console.log('ポート ' + (tryPort - 1) + ' は使用中です。ポート ' + tryPort + ' を試します...');
+    server.listen(tryPort);
+  } else {
+    console.error('サーバー起動エラー:', err.message);
+    process.exit(1);
+  }
+});
+
+server.on('listening', function() {
+  var port = server.address().port;
+  var url  = 'http://localhost:' + port;
   console.log('========================================');
   console.log('AI要件定義システム プロキシサーバー起動');
-  console.log('URL: http://localhost:' + PORT);
+  console.log('URL: ' + url);
   console.log('停止するには Ctrl+C を押してください');
   console.log('========================================');
+
+  // ブラウザを自動で開く（Windows の start コマンドを使用）
+  childProcess.exec('start ' + url, function(err) {
+    if (err) {
+      console.log('ブラウザの自動起動に失敗しました。手動で ' + url + ' を開いてください。');
+    }
+  });
 });
+
+server.listen(BASE_PORT);

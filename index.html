@@ -92,7 +92,7 @@
 
     /* ===== メインコンテンツエリア ===== */
     main {
-      max-width: 800px;
+      max-width: 1100px; /* 2カラムレイアウト時に十分な幅を確保する */
       margin: 40px auto;
       padding: 0 16px;
     }
@@ -572,6 +572,189 @@
       transform: translateY(0);
     }
 
+    /* ============================================================
+       2カラムレイアウト（要件定義書 + チャットサイドバー）
+       ============================================================ */
+
+    /* 外側ラッパー：flexで左70%・右30%に分割する */
+    #output-area {
+      display: none; /* 要件定義書生成後にJS で flex に切り替える */
+      gap: 24px;
+      align-items: flex-start;
+      margin-bottom: 28px;
+    }
+
+    /* 左カラム（70%）：要件定義書カード */
+    #output-col {
+      flex: 0 0 calc(70% - 12px);
+      min-width: 0; /* flexアイテムのオーバーフローを防ぐ */
+    }
+
+    #output-col .card { margin-bottom: 0; }
+
+    /* 右カラム（30%）：チャットサイドバー */
+    #chat-sidebar {
+      flex: 0 0 calc(30% - 12px);
+      background: #f8f8ff;
+      border: 1px solid rgba(1,0,190,0.12);
+      border-left: 3px solid #0100be;
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      max-height: calc(100vh - 100px); /* スクロールせずに画面内に収める */
+      position: sticky;
+      top: 76px; /* ヘッダーの高さ分だけ下にずらす */
+      box-shadow: 0 4px 24px rgba(1,0,190,0.08);
+      overflow: hidden;
+    }
+
+    /* チャットヘッダー */
+    .chat-header {
+      background: #0100be;
+      color: white;
+      padding: 14px 18px;
+      font-weight: bold;
+      font-size: 14px;
+      letter-spacing: 0.5px;
+      flex-shrink: 0;
+    }
+
+    /* メッセージ表示エリア（スクロール可能）*/
+    #chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* スクロールバーをシンプルにする */
+    #chat-messages::-webkit-scrollbar { width: 4px; }
+    #chat-messages::-webkit-scrollbar-track { background: transparent; }
+    #chat-messages::-webkit-scrollbar-thumb { background: rgba(1,0,190,0.20); border-radius: 4px; }
+
+    /* 吹き出し共通スタイル */
+    .chat-message {
+      max-width: 88%;
+      padding: 10px 13px;
+      border-radius: 12px;
+      font-size: 13px;
+      line-height: 1.65;
+      animation: msgFadeIn 0.35s ease forwards;
+      opacity: 0;
+    }
+
+    @keyframes msgFadeIn {
+      from { opacity: 0; transform: translateY(7px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* AIのメッセージ：左寄せ・薄いブルー背景 */
+    .chat-message.ai {
+      background: rgba(1,0,190,0.06);
+      color: #0a0a0a;
+      align-self: flex-start;
+      border-bottom-left-radius: 3px;
+    }
+
+    /* ユーザーのメッセージ：右寄せ・#0100be背景・白文字 */
+    .chat-message.user {
+      background: #0100be;
+      color: white;
+      align-self: flex-end;
+      border-bottom-right-radius: 3px;
+    }
+
+    /* ローディング吹き出し（ドットウェーブ）*/
+    .chat-message.loading {
+      background: rgba(1,0,190,0.04);
+      align-self: flex-start;
+      padding: 10px 14px;
+    }
+
+    .chat-message.loading .dot-wave { margin: 4px 0 2px; gap: 6px; }
+    .chat-message.loading .dot-wave span { width: 7px; height: 7px; }
+
+    /* チャット入力エリア（下部固定）*/
+    .chat-input-area {
+      flex-shrink: 0;
+      padding: 10px;
+      border-top: 1px solid rgba(1,0,190,0.10);
+      background: white;
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+    }
+
+    /* チャット入力テキストエリア */
+    #chat-input {
+      flex: 1;
+      padding: 9px 13px;
+      border: 1px solid rgba(1,0,190,0.18);
+      border-radius: 10px;
+      font-size: 13px;
+      font-family: inherit;
+      resize: none;
+      height: 62px;
+      color: #0a0a0a;
+      background: rgba(1,0,190,0.02);
+      transition: border-color 0.3s, box-shadow 0.3s;
+      line-height: 1.5;
+    }
+
+    #chat-input::placeholder { color: rgba(1,0,190,0.30); }
+
+    #chat-input:focus {
+      outline: none;
+      border-color: #82ff03;
+      box-shadow: 0 0 0 2px rgba(130,255,3,0.30);
+    }
+
+    /* 送信ボタン：#82ff03アクセント */
+    #chat-send-btn {
+      padding: 10px 14px;
+      background: #82ff03;
+      color: #0a0a0a;
+      border: none;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: bold;
+      cursor: pointer;
+      font-family: inherit;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    #chat-send-btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(130,255,3,0.50);
+    }
+
+    #chat-send-btn:disabled {
+      background: rgba(0,0,0,0.08);
+      color: #4a5568;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    /* ===== レスポンシブ：768px以下で縦積みレイアウトに切り替える ===== */
+    @media (max-width: 768px) {
+      #output-area { flex-direction: column !important; }
+      #output-col  { flex: none; width: 100%; }
+      #chat-sidebar {
+        flex: none;
+        width: 100%;
+        max-height: 400px;
+        position: static;
+        border-left: 1px solid rgba(1,0,190,0.12);
+        border-top: 3px solid #0100be;
+        border-radius: 16px;
+      }
+    }
+
     /* ===== フッター ===== */
     footer {
       text-align: center;
@@ -666,32 +849,55 @@
       <div id="question-error-area"></div>
     </div>
 
-    <!-- ===== STEP 3：生成結果表示エリア ===== -->
-    <div class="card scroll-fade" id="output-card" style="display:none;">
-      <!-- 出力ヘッダー（タイトル＋編集・コピーボタン）-->
-      <div id="output-header">
-        <div class="section-title" style="margin-bottom:0; border-bottom:none; padding-bottom:0;">
-          📄 生成された要件定義書
-        </div>
-        <!-- ボタングループ -->
-        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-          <!-- 編集ボタン：生成後に表示 -->
-          <button id="edit-btn" style="display:none;" title="要件定義書を直接編集します">
-            ✏️ 編集する
-          </button>
-          <!-- 編集完了ボタン：編集中に表示 -->
-          <button id="edit-done-btn" style="display:none;" title="編集を完了して閲覧モードに戻ります">
-            ✅ 編集を完了する
-          </button>
-          <!-- Markdownコピーボタン -->
-          <button id="copy-btn" title="Markdown形式でクリップボードにコピーします">
-            📋 Markdownをコピー
-          </button>
+    <!-- ===== STEP 3：2カラムレイアウト（要件定義書＋チャットサイドバー）===== -->
+    <div id="output-area">
+
+      <!-- 左カラム（70%）：要件定義書カード -->
+      <div id="output-col">
+        <div class="card scroll-fade" id="output-card">
+          <!-- 出力ヘッダー（タイトル＋編集・コピーボタン）-->
+          <div id="output-header">
+            <div class="section-title" style="margin-bottom:0; border-bottom:none; padding-bottom:0;">
+              📄 生成された要件定義書
+            </div>
+            <!-- ボタングループ -->
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+              <!-- 編集ボタン：生成後に表示 -->
+              <button id="edit-btn" style="display:none;" title="要件定義書を直接編集します">
+                ✏️ 編集する
+              </button>
+              <!-- 編集完了ボタン：編集中に表示 -->
+              <button id="edit-done-btn" style="display:none;" title="編集を完了して閲覧モードに戻ります">
+                ✅ 編集を完了する
+              </button>
+              <!-- Markdownコピーボタン -->
+              <button id="copy-btn" title="Markdown形式でクリップボードにコピーします">
+                📋 Markdownをコピー
+              </button>
+            </div>
+          </div>
+          <!-- Markdownをレンダリングして表示するエリア -->
+          <div id="output-content"></div>
         </div>
       </div>
-      <!-- Markdownをレンダリングして表示するエリア -->
-      <div id="output-content"></div>
-    </div>
+
+      <!-- 右カラム（30%）：AIチャットサイドバー -->
+      <div id="chat-sidebar">
+        <!-- サイドバーヘッダー -->
+        <div class="chat-header">🤖 AI修正アシスタント</div>
+        <!-- チャット履歴エリア（メッセージが動的に追加される）-->
+        <div id="chat-messages"></div>
+        <!-- チャット入力エリア（下部固定）-->
+        <div class="chat-input-area">
+          <textarea
+            id="chat-input"
+            placeholder="修正指示を入力してください...&#10;（Shift+Enterで改行、Enterで送信）"
+          ></textarea>
+          <button id="chat-send-btn">送信</button>
+        </div>
+      </div>
+
+    </div><!-- /#output-area -->
 
   </main>
 
@@ -945,9 +1151,9 @@
         var errorArea = document.getElementById('error-area');
         errorArea.style.display = 'none';
         errorArea.textContent   = '';
-        // 以前の質問カード・出力カードを非表示にする（やり直し対応）
+        // 以前の質問カード・出力エリアを非表示にする（やり直し対応）
         document.getElementById('question-card').style.display = 'none';
-        document.getElementById('output-card').style.display   = 'none';
+        document.getElementById('output-area').style.display   = 'none';
 
         try {
           // ===== AIに確認質問を生成させる =====
@@ -1087,7 +1293,7 @@
         var qErrorArea = document.getElementById('question-error-area');
         qErrorArea.style.display = 'none';
         qErrorArea.textContent   = '';
-        document.getElementById('output-card').style.display = 'none';
+        document.getElementById('output-area').style.display = 'none';
 
         try {
           // ===== 要件定義書生成のシステムプロンプト =====
@@ -1162,11 +1368,14 @@
           // 生成したMarkdownをコピーボタン用にグローバル変数に保存する
           window.generatedMarkdown = markdownText;
 
-          // 出力カードを表示する
-          document.getElementById('output-card').style.display = 'block';
+          // 2カラムの出力エリアを表示する
+          var outputAreaEl = document.getElementById('output-area');
+          outputAreaEl.style.display = 'flex';
 
           // 編集状態をリセットする（再生成時に前回の編集モードが残らないように）
           var outputContentEl = document.getElementById('output-content');
+          outputContentEl.style.opacity  = '1';
+          outputContentEl.style.transition = '';
           outputContentEl.removeAttribute('contenteditable');
           document.getElementById('edit-btn').style.display      = 'inline-block';
           document.getElementById('edit-done-btn').style.display = 'none';
@@ -1177,8 +1386,11 @@
           // 出力カードを IntersectionObserver の監視対象に追加する
           scrollObserver.observe(document.getElementById('output-card'));
 
+          // チャットを初期化する（初回生成時のみ初期メッセージを表示する）
+          initChat();
+
           // 出力エリアへスムーズスクロールする
-          document.getElementById('output-card').scrollIntoView({ behavior: 'smooth' });
+          outputAreaEl.scrollIntoView({ behavior: 'smooth' });
 
         } catch (error) {
           // エラーを質問カード内のエラーエリアに表示する
@@ -1325,7 +1537,134 @@
       }
 
       // ============================================================
-      // ⑪ 編集ボタン
+      // ⑪ AIチャットサイドバー
+      // ============================================================
+      var chatMessages    = document.getElementById('chat-messages');
+      var chatInput       = document.getElementById('chat-input');
+      var chatSendBtn     = document.getElementById('chat-send-btn');
+      var chatInitialized = false; // 初期メッセージの二重挿入を防ぐフラグ
+
+      // チャットを初期化する（初回の要件定義書生成後に一度だけ呼ばれる）
+      function initChat() {
+        if (chatInitialized) {
+          // 再生成時：チャット履歴はリセットせずに通知メッセージを追加する
+          addChatMessage('ai', '要件定義書が再生成されました。引き続き修正指示をどうぞ。');
+          return;
+        }
+        chatInitialized = true;
+        addChatMessage('ai', '要件定義書を確認しました。修正したい箇所や追加したい内容があればお知らせください。');
+      }
+
+      // チャットメッセージ（吹き出し）をDOMに追加して返す
+      function addChatMessage(role, text) {
+        var msg = document.createElement('div');
+        msg.className = 'chat-message ' + role;
+        // XSS対策：textContentを使用する
+        msg.textContent = text;
+        chatMessages.appendChild(msg);
+        // 最新メッセージが見えるようにスクロールする
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        return msg;
+      }
+
+      // ローディング（ドットウェーブ）吹き出しを追加して要素を返す
+      function addChatLoading() {
+        var msg = document.createElement('div');
+        msg.className = 'chat-message loading';
+        var wave = document.createElement('div');
+        wave.className = 'dot-wave';
+        // 3つのドットを生成する
+        for (var i = 0; i < 3; i++) {
+          wave.appendChild(document.createElement('span'));
+        }
+        msg.appendChild(wave);
+        chatMessages.appendChild(msg);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        return msg;
+      }
+
+      // 修正指示をClaudeに送信して要件定義書を更新する
+      async function sendChatMessage() {
+        var instruction = chatInput.value.trim();
+        if (!instruction) return;
+
+        var apiKey = apiKeyInput.value.trim();
+        if (!apiKey) {
+          alert('APIキーを入力してください。ヘッダーの「Claude APIキー」欄に入力してください。');
+          apiKeyInput.focus();
+          return;
+        }
+
+        // ユーザーの指示を吹き出しで表示する
+        addChatMessage('user', instruction);
+        chatInput.value = '';
+
+        // UI を送信中状態にする（二重送信防止）
+        chatSendBtn.disabled = true;
+        chatInput.disabled   = true;
+        var loadingBubble = addChatLoading();
+
+        try {
+          var currentMarkdown = window.generatedMarkdown || '';
+
+          // システムプロンプト：修正後の要件定義書全文のみを出力させる
+          var chatSystemPrompt =
+            'あなたはITシステムの要件定義の専門家です。' +
+            '既存の要件定義書に対して修正指示を受けました。' +
+            '指示の内容を要件定義書に正確に反映し、修正後の要件定義書全文をMarkdown形式で出力してください。' +
+            '出力は要件定義書のMarkdownのみとし、前置きや後書きは一切不要です。' +
+            '既存のセクション構成・フォーマットはそのまま維持してください。';
+
+          var chatUserMessage =
+            '【現在の要件定義書】\n' + currentMarkdown +
+            '\n\n【修正指示】\n' + instruction +
+            '\n\n上記の修正指示に従って要件定義書を修正し、修正後の全文を出力してください。';
+
+          var newMarkdown = await callClaudeApi(apiKey, chatSystemPrompt, chatUserMessage);
+
+          // ローディングを除去してAIの返答を表示する
+          loadingBubble.remove();
+          addChatMessage('ai', '要件定義書を修正しました。内容をご確認ください。');
+
+          // 新しい要件定義書をグローバル変数に保存する
+          window.generatedMarkdown = newMarkdown;
+
+          // フェードアウト → 内容更新 → フェードインのアニメーション
+          var outputContentEl = document.getElementById('output-content');
+          outputContentEl.style.transition = 'opacity 0.3s ease';
+          outputContentEl.style.opacity    = '0';
+          setTimeout(function() {
+            renderMarkdown(newMarkdown);
+            outputContentEl.style.opacity = '1';
+          }, 300);
+
+        } catch (error) {
+          loadingBubble.remove();
+          var errMsg = (error instanceof TypeError)
+            ? 'ネットワークエラー。server.js が起動しているか確認してください。'
+            : error.message;
+          addChatMessage('ai', '⚠️ エラーが発生しました：' + errMsg);
+        } finally {
+          // UI を通常状態に戻す
+          chatSendBtn.disabled = false;
+          chatInput.disabled   = false;
+          chatInput.focus();
+        }
+      }
+
+      // 送信ボタンのクリックで送信する
+      chatSendBtn.addEventListener('click', sendChatMessage);
+
+      // Enterキーで送信、Shift+Enterで改行する
+      chatInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault(); // デフォルトの改行を抑制する
+          sendChatMessage();
+        }
+      });
+
+      // ============================================================
+      // ⑫ 編集ボタン
       // ============================================================
       var editBtn          = document.getElementById('edit-btn');
       var editDoneBtn      = document.getElementById('edit-done-btn');

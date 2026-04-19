@@ -1497,7 +1497,9 @@
       });
 
       // ===== プロキシサーバーのエンドポイント =====
-      var API_URL = 'http://localhost:3001/api/claude';
+      // Vercel デプロイ時は同一オリジンの /api/claude を使用する
+      // ローカル開発時は server.js（localhost:3001）を起動すれば同じパスで動作する
+      var API_URL = '/api/claude';
 
       // ===== STEP 1/2 の取得情報を保持する変数 =====
       var savedInitialRequest     = '';

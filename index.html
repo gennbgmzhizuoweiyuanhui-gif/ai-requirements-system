@@ -60,6 +60,33 @@
       letter-spacing: 0.5px;
     }
 
+    /* ===== プロバイダー選択ドロップダウン ===== */
+    #provider-select {
+      padding: 8px 10px;
+      border: 1px solid rgba(255,255,255,0.30);
+      border-radius: 8px;
+      font-size: 13px;
+      background: rgba(255,255,255,0.15);
+      color: white;
+      cursor: pointer;
+      transition: border-color 0.3s, box-shadow 0.3s;
+      appearance: none;                         /* ブラウザ既定スタイルを除去する */
+      -webkit-appearance: none;
+      padding-right: 28px;                      /* ▼ アイコン用の余白 */
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(255,255,255,0.7)'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+    }
+    #provider-select:focus {
+      outline: none;
+      border-color: #82ff03;
+      box-shadow: 0 0 0 2px rgba(130,255,3,0.30);
+    }
+    #provider-select option {
+      background: #0100be; /* ドロップダウンの選択肢の背景色 */
+      color: white;
+    }
+
     /* ===== APIキーラベル ===== */
     #api-key-label {
       font-size: 12px;
@@ -899,16 +926,21 @@
 </head>
 <body>
 
-  <!-- ===== ヘッダー：タイトルとAPIキー入力 ===== -->
+  <!-- ===== ヘッダー：タイトル・プロバイダー選択・APIキー入力 ===== -->
   <header>
     <h1>🏗 AI要件定義システム</h1>
-    <span id="api-key-label">Claude APIキー：</span>
+    <!-- プロバイダー選択ドロップダウン（Claude / Gemini）-->
+    <select id="provider-select" title="AIプロバイダーを選択してください">
+      <option value="claude">Claude</option>
+      <option value="gemini">Gemini</option>
+    </select>
+    <span id="api-key-label">APIキー：</span>
     <!-- APIキー入力欄（type="password"で非表示、autocomplete="off"でパスワード保存ダイアログを抑制）-->
     <input
       type="password"
       id="api-key-input"
       placeholder="sk-ant-api03-..."
-      title="Claude APIキーを入力してください"
+      title="APIキーを入力してください"
       autocomplete="off"
     >
   </header>
@@ -958,7 +990,7 @@
         <div class="dot-wave">
           <span></span><span></span><span></span><span></span><span></span>
         </div>
-        <div id="loading-message">Claude AIが確認事項を考えています...</div>
+        <div id="loading-message">AIが確認事項を考えています...</div>
       </div>
 
       <!-- STEP 1 のエラー表示 -->
@@ -1053,17 +1085,44 @@
     document.addEventListener('DOMContentLoaded', function() {
 
       // ===== 要素参照の取得 =====
-      var apiKeyInput = document.getElementById('api-key-input');
-      var textarea    = document.getElementById('input-textarea');
-      var charCount   = document.getElementById('char-count');
-      var hearingBtn  = document.getElementById('hearing-btn');
-      var generateBtn = document.getElementById('generate-btn');
+      var apiKeyInput    = document.getElementById('api-key-input');
+      var providerSelect = document.getElementById('provider-select');
+      var textarea       = document.getElementById('input-textarea');
+      var charCount      = document.getElementById('char-count');
+      var hearingBtn     = document.getElementById('hearing-btn');
+      var generateBtn    = document.getElementById('generate-btn');
 
-      // ===== APIキーの localStorage 復元・保存 =====
-      var savedKey = localStorage.getItem('claude_api_key');
+      // ===== プロバイダー別のAPIキープレースホルダーを更新するヘルパー =====
+      function updateApiKeyPlaceholder(provider) {
+        apiKeyInput.placeholder = (provider === 'gemini') ? 'AIza...' : 'sk-ant-api03-...';
+      }
+
+      // ===== プロバイダー選択と APIキー の localStorage 復元 =====
+      var savedProvider = localStorage.getItem('ai_provider') || 'claude';
+      providerSelect.value = savedProvider;
+      updateApiKeyPlaceholder(savedProvider);
+      // プロバイダー別キーを復元する（後方互換：Claudeは旧キー名も参照する）
+      var claudeLegacy = localStorage.getItem('claude_api_key');
+      var savedKey = localStorage.getItem(savedProvider + '_api_key') ||
+                     (savedProvider === 'claude' ? claudeLegacy : '') || '';
       if (savedKey) apiKeyInput.value = savedKey;
+
+      // プロバイダー切り替え時：キーを保存して対応プロバイダーのキーを復元する
+      providerSelect.addEventListener('change', function() {
+        var p = providerSelect.value;
+        localStorage.setItem('ai_provider', p);
+        updateApiKeyPlaceholder(p);
+        var legacy = (p === 'claude') ? localStorage.getItem('claude_api_key') : '';
+        apiKeyInput.value = localStorage.getItem(p + '_api_key') || legacy || '';
+      });
+
+      // APIキー入力時：プロバイダー別に localStorage へ保存する
       apiKeyInput.addEventListener('input', function() {
-        localStorage.setItem('claude_api_key', apiKeyInput.value);
+        localStorage.setItem(providerSelect.value + '_api_key', apiKeyInput.value);
+        // Claude の場合は旧キー名にも保存して後方互換を維持する
+        if (providerSelect.value === 'claude') {
+          localStorage.setItem('claude_api_key', apiKeyInput.value);
+        }
       });
 
       // ===== プロキシサーバーのエンドポイント =====
@@ -1189,11 +1248,13 @@
       });
 
       // ============================================================
-      // ⑤ Claude API 共通呼び出し関数
+      // ⑤ AI API 共通呼び出し関数（Claude / Gemini 両対応）
       // ============================================================
       async function callClaudeApi(apiKey, systemPrompt, userMessage) {
+        var provider    = providerSelect.value; // 現在選択中のプロバイダーを取得する
         var requestBody = {
-          model:      'claude-sonnet-4-20250514', // 使用するモデル
+          provider:   provider,                    // プロキシ側でルーティングに使用する
+          model:      'claude-sonnet-4-20250514',  // Claudeのモデル（Gemini側は無視される）
           max_tokens: 4000,                        // 最大生成トークン数
           system:     systemPrompt,                // システムプロンプト
           messages:   [{ role: 'user', content: userMessage }]
@@ -1208,11 +1269,13 @@
           body: JSON.stringify(requestBody)
         });
 
-        // HTTPエラー（4xx/5xx）を日本語メッセージに変換する
+        // HTTPエラー（4xx/5xx）をプロバイダー別の日本語メッセージに変換する
         if (!response.ok) {
           var errorMsg = 'APIエラー（HTTP ' + response.status + '）\n';
           if (response.status === 401) {
-            errorMsg += 'APIキーが無効です。正しいAPIキーを入力してください。';
+            errorMsg += (provider === 'gemini')
+              ? 'APIキーが無効です。Gemini APIキーはGoogle AI Studioで取得できます。'
+              : 'APIキーが無効です。正しいClaudeのAPIキーを入力してください。';
           } else if (response.status === 429) {
             errorMsg += 'APIの利用制限に達しました。しばらく待ってから再試行してください。';
           } else if (response.status === 400) {
@@ -1230,7 +1293,7 @@
         }
 
         var data = await response.json();
-        // レスポンス構造を安全に確認する
+        // レスポンス構造を安全に確認する（サーバー側で Claude 形式に正規化済み）
         if (!data.content || !data.content[0] || !data.content[0].text) {
           throw new Error('APIから有効なレスポンスが返りませんでした。もう一度お試しください。');
         }
@@ -1264,7 +1327,7 @@
         // ===== 入力チェック =====
         var apiKey = apiKeyInput.value.trim();
         if (!apiKey) {
-          alert('APIキーを入力してください。\nヘッダーの「Claude APIキー」欄に入力してください。');
+          alert('APIキーを入力してください。\nヘッダーのAPIキー欄に入力してください。');
           apiKeyInput.focus();
           return;
         }
@@ -1431,7 +1494,7 @@
         // ===== 入力チェック =====
         var apiKey = apiKeyInput.value.trim();
         if (!apiKey) {
-          alert('APIキーを入力してください。\nヘッダーの「Claude APIキー」欄に入力してください。');
+          alert('APIキーを入力してください。\nヘッダーのAPIキー欄に入力してください。');
           apiKeyInput.focus();
           return;
         }
@@ -1895,7 +1958,7 @@
 
         var apiKey = apiKeyInput.value.trim();
         if (!apiKey) {
-          alert('APIキーを入力してください。ヘッダーの「Claude APIキー」欄に入力してください。');
+          alert('APIキーを入力してください。ヘッダーのAPIキー欄に入力してください。');
           apiKeyInput.focus();
           return;
         }

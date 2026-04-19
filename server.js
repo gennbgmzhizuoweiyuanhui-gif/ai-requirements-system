@@ -59,8 +59,86 @@ var server = http.createServer(function(req, res) {
       return;
     }
 
-    // ===== Anthropic API へのリクエスト設定 =====
-    var bodyBuffer = Buffer.from(body); // Content-Lengthを正確に計算するためBufferに変換
+    // ===== リクエストボディをJSONとして解析してプロバイダーを判定する =====
+    var parsed;
+    try {
+      parsed = JSON.parse(body);
+    } catch (e) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Request body must be valid JSON' }));
+      return;
+    }
+
+    var provider = parsed.provider || 'claude'; // 'claude' または 'gemini'
+
+    // ===== Gemini API へのルーティング =====
+    if (provider === 'gemini') {
+      // system プロンプトとユーザーメッセージを結合して Gemini 形式に変換する
+      var systemText = parsed.system || '';
+      var userText   = (parsed.messages && parsed.messages[0] && parsed.messages[0].content) || '';
+      var fullText   = systemText ? systemText + '\n\n' + userText : userText;
+
+      var geminiBody       = JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: fullText }] }]
+      });
+      var geminiBodyBuffer = Buffer.from(geminiBody);
+
+      var geminiOptions = {
+        hostname: 'generativelanguage.googleapis.com',
+        path:     '/v1beta/models/gemini-2.0-flash:generateContent?key=' + apiKey,
+        method:   'POST',
+        headers: {
+          'Content-Type':   'application/json',
+          'Content-Length': geminiBodyBuffer.length
+        }
+      };
+
+      var geminiReq = https.request(geminiOptions, function(geminiRes) {
+        var geminiData = '';
+        geminiRes.on('data', function(chunk) { geminiData += chunk; });
+        geminiRes.on('end', function() {
+          // Gemini エラーレスポンス（4xx/5xx）はそのままブラウザへ返す
+          if (geminiRes.statusCode !== 200) {
+            res.writeHead(geminiRes.statusCode, { 'Content-Type': 'application/json' });
+            res.end(geminiData);
+            return;
+          }
+          // 正常レスポンスを Claude 形式（{content:[{text:"..."}]}）に正規化して返す
+          try {
+            var geminiJson = JSON.parse(geminiData);
+            var text       = geminiJson.candidates[0].content.parts[0].text;
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ content: [{ type: 'text', text: text }] }));
+          } catch (e) {
+            console.error('Gemini レスポンス解析エラー:', e.message);
+            res.writeHead(502, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Gemini APIのレスポンス解析に失敗しました: ' + e.message }));
+          }
+        });
+      });
+
+      geminiReq.on('error', function(err) {
+        console.error('Gemini API への接続エラー:', err.message);
+        if (!res.headersSent) {
+          res.writeHead(502, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Gemini API への接続に失敗しました: ' + err.message }));
+        }
+      });
+
+      geminiReq.write(geminiBodyBuffer);
+      geminiReq.end();
+      return; // ここで処理を終了する
+    }
+
+    // ===== Claude（Anthropic）API へのルーティング =====
+    // provider フィールドを除いた Claude 用ボディを組み立てる
+    var claudeBody = {
+      model:      parsed.model      || 'claude-sonnet-4-20250514',
+      max_tokens: parsed.max_tokens || 4000,
+      system:     parsed.system,
+      messages:   parsed.messages
+    };
+    var bodyBuffer = Buffer.from(JSON.stringify(claudeBody)); // Content-Lengthを正確に計算するためBufferに変換
     var options = {
       hostname: 'api.anthropic.com',      // Anthropic APIのホスト名
       path:     '/v1/messages',            // メッセージ生成エンドポイント

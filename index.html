@@ -920,6 +920,13 @@
       margin-top: 6px;
     }
 
+    /* ===== API料金注記 ===== */
+    #file-cost-notice {
+      font-size: 11px;
+      color: rgba(1,0,190,0.40);
+      margin-top: 6px;
+    }
+
     /* ===== フッター ===== */
     footer {
       text-align: center;
@@ -1081,7 +1088,7 @@
           accept=".txt,.md,.csv,.js,.ts,.py,.java,.php,.rb,.go,.cs,.html,.css,.json,.xml,.yaml,.yml,.sql,.pdf"
           style="display:none;"
         >
-        <button class="btn" id="attach-btn" title="テキスト・ソースコードファイルを添付できます（最大5ファイル・合計500KB）">
+        <button class="btn" id="attach-btn" title="テキスト・ソースコード・PDFファイルを添付できます（最大10ファイル・1ファイル5MB・合計20MB）">
           📎 ファイルを添付する
         </button>
         <span id="voice-status"></span>
@@ -1091,6 +1098,8 @@
       <div id="file-badge-area"></div>
       <!-- ファイル添付エラー（上限超過・非対応形式）-->
       <div id="file-error-area"></div>
+      <!-- API料金注記 -->
+      <div id="file-cost-notice">※大きなファイルはAPI利用料金が増加する場合があります</div>
 
       <!-- ヒアリング開始ボタン（クリックするとAIが確認質問を生成する）-->
       <button class="btn" id="hearing-btn">
@@ -1840,9 +1849,10 @@
       var attachedFiles = []; // { name, size, content, isCode } の配列
 
       // 対応拡張子の定義
-      var CODE_EXTS  = ['js','ts','py','java','php','rb','go','cs','html','css','json','xml','yaml','yml','sql'];
-      var MAX_FILES  = 5;
-      var MAX_BYTES  = 500 * 1024; // 500KB
+      var CODE_EXTS      = ['js','ts','py','java','php','rb','go','cs','html','css','json','xml','yaml','yml','sql'];
+      var MAX_FILES      = 10;               // 最大10ファイル
+      var MAX_FILE_BYTES = 5  * 1024 * 1024; // 1ファイルあたり5MB
+      var MAX_BYTES      = 20 * 1024 * 1024; // 合計20MB
 
       // 添付ボタン → 非表示のfile inputをクリックする
       attachBtn.addEventListener('click', function() {
@@ -1861,7 +1871,14 @@
           // ファイル数上限チェック（全形式共通）
           if (attachedFiles.length >= MAX_FILES) {
             fileErrorArea.style.display = 'block';
-            fileErrorArea.textContent   = '⚠️ 添付ファイルは最大5ファイルまでです。';
+            fileErrorArea.textContent   = '⚠️ 添付できるファイルは最大10個までです。';
+            return;
+          }
+
+          // 1ファイルサイズ上限チェック
+          if (file.size > MAX_FILE_BYTES) {
+            fileErrorArea.style.display = 'block';
+            fileErrorArea.textContent   = '⚠️ 1ファイルあたり5MBまでです。（' + file.name + '）';
             return;
           }
 
@@ -1869,7 +1886,7 @@
           var totalSize = attachedFiles.reduce(function(s, f) { return s + f.size; }, 0) + file.size;
           if (totalSize > MAX_BYTES) {
             fileErrorArea.style.display = 'block';
-            fileErrorArea.textContent   = '⚠️ 添付ファイルの合計サイズは500KBまでです。';
+            fileErrorArea.textContent   = '⚠️ 添付ファイルの合計サイズは20MBまでです。';
             return;
           }
 

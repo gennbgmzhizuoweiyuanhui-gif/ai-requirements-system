@@ -52,14 +52,11 @@
       z-index: 100;
     }
 
-    /* ===== タイトル：グラデーションテキスト ===== */
+    /* ===== タイトル：白文字（#0100be背景上なので可読性問題なし）===== */
     header h1 {
       font-size: 18px;
       flex: 1;
-      background: var(--grad);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+      color: white;
       letter-spacing: 0.5px;
     }
 
@@ -122,13 +119,13 @@
       to   { opacity: 1; transform: translateY(0); }
     }
 
-    /* ===== セクションタイトル ===== */
+    /* ===== セクションタイトル：#0100beで白背景でも読みやすく ===== */
     .section-title {
       font-size: 11px;
       font-weight: bold;
       letter-spacing: 2px;
       text-transform: uppercase;
-      color: var(--cyan);
+      color: #0100be;
       margin-bottom: 20px;
       padding-bottom: 12px;
       border-bottom: 1px solid var(--border);
@@ -193,7 +190,7 @@
 
     /* 文字数変化時のバウンスアニメーション用クラス（JS で付与・解除）*/
     .count-bump {
-      color: var(--cyan) !important;
+      color: #0100be !important;
       transform: scale(1.12);
     }
 
@@ -396,6 +393,34 @@
       border-radius: 3px;
     }
 
+    /* ===== 質問ごとの個別回答テキストエリア ===== */
+    .answer-input {
+      width: 100%;
+      margin-top: 10px;
+      padding: 10px 14px;
+      background: rgba(255,255,255,0.9);
+      border: 1px solid rgba(1,0,190,0.16);
+      border-radius: 10px;
+      font-size: 14px;
+      font-family: inherit;
+      resize: vertical;
+      line-height: 1.65;
+      color: var(--text);
+      min-height: 60px;
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .answer-input::placeholder { color: rgba(1,0,190,0.28); }
+
+    /* フォーカス時：#82ff03のグロー */
+    .answer-input:focus {
+      outline: none;
+      border-color: #82ff03;
+      box-shadow:
+        0 0 0 1px rgba(130,255,3,0.38),
+        0 0 14px rgba(130,255,3,0.20);
+    }
+
     /* 番号バッジ（グラデーション円形）*/
     .question-number {
       min-width: 26px;
@@ -505,17 +530,14 @@
       color: var(--text);
     }
 
-    /* 見出し1（# ）→ <h2>：グラデーションテキスト ===== */
+    /* 見出し1（# ）→ <h2>：#0100be文字＋#82ff03アンダーラインでメリハリをつける ===== */
     #output-content h2 {
       font-size: 18px;
       font-weight: bold;
-      background: var(--grad);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+      color: #0100be;
       margin: 28px 0 14px;
       padding-bottom: 8px;
-      border-bottom: 1px solid var(--border);
+      border-bottom: 2px solid #82ff03;
     }
 
     /* 見出し2（## ）→ <h3> */
@@ -821,18 +843,10 @@
     <div class="card scroll-fade" id="question-card" style="display:none;">
       <div class="section-title">💬 AIからの確認事項</div>
 
-      <!-- AIが生成した質問を個別カードとして動的生成するコンテナ -->
+      <!-- AIが生成した質問＋個別回答欄を動的生成するコンテナ（JS が各質問の下に回答欄を挿入する）-->
       <div id="question-content"></div>
 
-      <!-- 回答入力セクション -->
-      <div class="answer-section-label">📝 上記の質問にご回答ください（番号順に）</div>
-      <textarea
-        id="answer-textarea"
-        placeholder="例：&#10;1. 現在は紙の日報で管理しています。毎日10〜20枚ほど処理しています。&#10;2. 現場作業員15名と所長2名が使います。本社管理者3名が確認します。&#10;3. ..."
-      ></textarea>
-      <div id="answer-char-count">0 文字</div>
-
-      <!-- 要件定義書生成ボタン（回答入力後にスライドアップで出現）-->
+      <!-- 要件定義書生成ボタン（質問カード表示後にスライドアップで出現）-->
       <button class="btn" id="generate-btn">
         ✨ 要件定義書を生成する
       </button>
@@ -911,13 +925,11 @@
     document.addEventListener('DOMContentLoaded', function() {
 
       // ===== 要素参照の取得 =====
-      var apiKeyInput     = document.getElementById('api-key-input');
-      var textarea        = document.getElementById('input-textarea');
-      var charCount       = document.getElementById('char-count');
-      var hearingBtn      = document.getElementById('hearing-btn');
-      var answerTextarea  = document.getElementById('answer-textarea');
-      var answerCharCount = document.getElementById('answer-char-count');
-      var generateBtn     = document.getElementById('generate-btn');
+      var apiKeyInput = document.getElementById('api-key-input');
+      var textarea    = document.getElementById('input-textarea');
+      var charCount   = document.getElementById('char-count');
+      var hearingBtn  = document.getElementById('hearing-btn');
+      var generateBtn = document.getElementById('generate-btn');
 
       // ===== APIキーの localStorage 復元・保存 =====
       var savedKey = localStorage.getItem('claude_api_key');
@@ -1005,14 +1017,6 @@
 
       textarea.addEventListener('input', function() {
         updateCharCount(charCount, textarea.value.length);
-      });
-
-      answerTextarea.addEventListener('input', function() {
-        updateCharCount(answerCharCount, answerTextarea.value.length);
-        // 回答が1文字以上入力されたら生成ボタンをスライドアップで表示する
-        if (answerTextarea.value.trim().length > 0) {
-          generateBtn.classList.add('slide-up');
-        }
       });
 
       // ============================================================
@@ -1156,74 +1160,97 @@
         document.getElementById('output-area').style.display   = 'none';
 
         try {
-          // ===== AIに確認質問を生成させる =====
-          var hearingSystemPrompt = `あなたはITシステムの要件定義の専門家です。
-現場担当者から最初の要望を受け取りました。
-より精確な要件定義書を作成するために、以下の観点のうち特に重要な情報を3〜5個の質問にまとめてください。
+          // ===== AIに確認質問＋各質問への想定回答をJSON形式で生成させる =====
+          var hearingSystemPrompt =
+            'あなたはITシステムの要件定義の専門家です。\n' +
+            '現場担当者から最初の要望を受け取りました。\n' +
+            'より精確な要件定義書を作成するために、以下の観点から重要な情報を3〜5個の質問にまとめてください。\n\n' +
+            '確認観点：\n' +
+            '- As-Is（現状の課題・問題点・今はどうやっているか）\n' +
+            '- To-Be（システム導入後に実現したい理想の状態）\n' +
+            '- ステークホルダー（誰が使うか・何人くらいか・誰が承認するか）\n' +
+            '- 制約条件（予算感・導入希望時期・既存システムとの連携・対応デバイス）\n' +
+            '- 優先度（絶対に必要な機能 vs あれば嬉しい機能）\n\n' +
+            '出力形式：\n' +
+            '必ず以下のJSON形式のみで出力してください（前置き・後書き・コードブロック記号不要）。\n' +
+            '{\n' +
+            '  "questions": ["質問1", "質問2", ...],\n' +
+            '  "defaultAnswers": ["想定回答1", "想定回答2", ...]\n' +
+            '}\n\n' +
+            '- questionsは3〜5個、各質問は現場の方が答えやすい平易な言葉で1〜2文\n' +
+            '- defaultAnswersはquestionsと同じ数で、各質問への「現場担当者が答えそうな具体的な想定回答」を記述\n' +
+            '- 想定回答は担当者が手直しの起点として使える実用的・具体的な内容にする\n' +
+            '- 日本語で出力する';
 
-確認観点：
-- As-Is（現状の課題・問題点・今はどうやっているか）
-- To-Be（システム導入後に実現したい理想の状態）
-- ステークホルダー（誰が使うか・何人くらいか・誰が承認するか）
-- 制約条件（予算感・導入希望時期・既存システムとの連携・対応デバイス）
-- 優先度（絶対に必要な機能 vs あれば嬉しい機能）
-
-出力形式：
-- 番号付きで3〜5個の質問のみを出力する（前置き・後書き不要）
-- 例：1. ○○について教えてください。
-- 各質問は1〜2文で簡潔に
-- 現場の方が答えやすい平易な言葉を使う
-- 日本語で出力する`;
-
-          var questionsText = await callClaudeApi(
+          var responseText = await callClaudeApi(
             apiKey,
             hearingSystemPrompt,
-            '以下の要望に対して、確認質問を生成してください。\n\n' + inputText
+            '以下の要望に対して、確認質問と各質問への想定回答をJSON形式で生成してください。\n\n' + inputText
           );
 
-          // 取得した情報を STEP 2 で使うために保存する
+          // ===== JSON形式でパースする（フォールバックあり）=====
+          var parsed;
+          try {
+            // レスポンス内の {...} 部分だけを抽出してパースする
+            var jsonMatch = responseText.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : responseText);
+          } catch (parseErr) {
+            // パースに失敗した場合は旧形式（番号付きリスト）として読み取るフォールバック
+            var fallbackLines = responseText.split('\n')
+              .map(function(l) { return l.trim(); })
+              .filter(function(l) { return /^\d+\. /.test(l); });
+            parsed = {
+              questions:      fallbackLines.map(function(l) { return l.replace(/^\d+\. /, ''); }),
+              defaultAnswers: []
+            };
+          }
+
+          var questionTexts  = parsed.questions      || [];
+          var defaultAnswers = parsed.defaultAnswers || [];
+
+          // 取得した情報を STEP 2 で使うために保存する（番号付き形式に変換して保存）
           savedInitialRequest = inputText;
-          savedQuestionsText  = questionsText;
+          savedQuestionsText  = questionTexts.map(function(q, i) {
+            return (i + 1) + '. ' + q;
+          }).join('\n');
 
           // ===== 質問をパースして個別カードとして動的生成する =====
           var questionContainer = document.getElementById('question-content');
           questionContainer.innerHTML = ''; // 前回の質問をクリアする
 
-          // 「1. テキスト」形式の行を抽出する
-          var questionLines = questionsText.split('\n')
-            .map(function(l) { return l.trim(); })
-            .filter(function(l) { return /^\d+\. /.test(l); });
-
-          // 抽出できなかった場合は全行をそのまま使う（フォールバック）
-          if (questionLines.length === 0) {
-            questionLines = questionsText.split('\n').filter(function(l) { return l.trim(); });
-          }
-
           // 各質問をカード要素として作成する（この時点ではまだ opacity:0）
-          var questionItems = questionLines.map(function(qLine, idx) {
-            var text = qLine.replace(/^\d+\. /, ''); // 番号と「. 」を除いたテキスト
-
-            var item   = document.createElement('div');
+          var questionItems = questionTexts.map(function(qText, idx) {
+            var item = document.createElement('div');
             item.className = 'question-item';
 
-            var badge  = document.createElement('div');
+            // 番号バッジ
+            var badge = document.createElement('div');
             badge.className   = 'question-number';
             badge.textContent = idx + 1;
 
+            // 質問テキスト
             var textEl = document.createElement('div');
             textEl.className   = 'question-text';
-            textEl.textContent = text;
+            textEl.textContent = qText;
+
+            // 個別回答テキストエリア（AIの想定回答をプリフィルする）
+            var answerInput = document.createElement('textarea');
+            answerInput.className   = 'answer-input';
+            answerInput.rows        = 3;
+            answerInput.placeholder = '上の想定回答を参考に、実際の状況を入力してください';
+            if (defaultAnswers[idx]) {
+              answerInput.value = defaultAnswers[idx]; // AIの想定回答をプリフィル
+            }
 
             item.appendChild(badge);
             item.appendChild(textEl);
+            item.appendChild(answerInput);
             questionContainer.appendChild(item);
             return item;
           });
 
-          // ===== 回答エリアとボタンをリセットする（やり直し対応）=====
-          answerTextarea.value        = '';
-          answerCharCount.textContent = '0 文字';
-          generateBtn.classList.remove('slide-up'); // 生成ボタンを再び非表示にする
+          // ===== ボタンをリセットする（やり直し対応）=====
+          generateBtn.classList.remove('slide-up'); // 一旦非表示にする
           var qErrorArea = document.getElementById('question-error-area');
           qErrorArea.style.display = 'none';
           qErrorArea.textContent   = '';
@@ -1237,6 +1264,13 @@
               item.classList.add('slide-in'); // フェードイン＋スライドダウン
             }, 80 * idx);
           });
+
+          // 全質問のアニメーション完了後に生成ボタンをスライドアップ表示する
+          // （回答がプリフィル済みのため、入力待ちなしでボタンを出現させる）
+          var btnDelay = 80 * questionTexts.length + 400;
+          setTimeout(function() {
+            generateBtn.classList.add('slide-up');
+          }, btnDelay);
 
           // 質問カードへスムーズスクロールする
           document.getElementById('question-card').scrollIntoView({ behavior: 'smooth' });
@@ -1273,18 +1307,17 @@
           return;
         }
 
-        var answerText = answerTextarea.value.trim();
-        if (!answerText) {
-          alert('AIからの質問に回答してください。');
-          answerTextarea.focus();
-          return;
-        }
-
         // STEP 1 が完了しているか確認する（防御的チェック）
         if (!savedInitialRequest || !savedQuestionsText) {
           alert('先に「ヒアリングを開始する」をクリックして質問を取得してください。');
           return;
         }
+
+        // 各質問カードの個別回答欄から回答を収集する
+        var answerInputs = document.querySelectorAll('#question-content .answer-input');
+        var answerText = Array.from(answerInputs).map(function(ta, idx) {
+          return (idx + 1) + '. ' + (ta.value.trim() || '（未回答）');
+        }).join('\n');
 
         // ===== UI を「生成中」状態にする =====
         generateBtn.disabled    = true;

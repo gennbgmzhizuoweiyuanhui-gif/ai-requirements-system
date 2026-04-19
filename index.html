@@ -927,6 +927,180 @@
       margin-top: 6px;
     }
 
+    /* ===== BC保存（デモ）ボタン ===== */
+    #bc-btn {
+      background: #7b2ff7;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.2s, box-shadow 0.2s;
+      white-space: nowrap;
+    }
+    #bc-btn:hover {
+      background: #6a22e0;
+      box-shadow: 0 0 14px rgba(123,47,247,0.55), 0 0 28px rgba(123,47,247,0.25);
+    }
+
+    /* ===== BC モーダル オーバーレイ ===== */
+    #bc-modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.72);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 9000;
+      align-items: center;
+      justify-content: center;
+    }
+    #bc-modal-overlay.active { display: flex; }
+
+    /* ===== BC モーダル 本体 ===== */
+    #bc-modal {
+      background: #0a0a2e;
+      border: 1px solid rgba(123,47,247,0.45);
+      border-radius: 16px;
+      width: 90%;
+      max-width: 560px;
+      max-height: 82vh;
+      overflow-y: auto;
+      padding: 28px;
+      box-shadow:
+        0 0 40px rgba(123,47,247,0.30),
+        0 0 80px rgba(0,212,255,0.10);
+      color: #dde0ff;
+      position: relative;
+    }
+
+    /* ヘッダー行 */
+    #bc-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid rgba(123,47,247,0.30);
+    }
+    #bc-modal-title {
+      font-size: 17px;
+      font-weight: bold;
+      background: linear-gradient(90deg, #7b2ff7, #00d4ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    #bc-close-btn {
+      background: none;
+      border: 1px solid rgba(255,255,255,0.20);
+      border-radius: 6px;
+      color: rgba(255,255,255,0.60);
+      width: 28px; height: 28px;
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 1;
+      transition: background 0.2s;
+    }
+    #bc-close-btn:hover { background: rgba(255,255,255,0.10); }
+
+    /* 各ステップ：フェードイン＋スライドアップ */
+    .bc-step {
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 0.45s ease, transform 0.45s ease;
+      margin-bottom: 22px;
+    }
+    .bc-step.visible { opacity: 1; transform: translateY(0); }
+
+    /* ステップラベル */
+    .bc-step-label {
+      font-size: 14px;
+      margin-bottom: 10px;
+      color: #c0c8ff;
+    }
+
+    /* ハッシュ値・TxID のモノスペース表示 */
+    .bc-mono {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 12px;
+      color: #82ff03;           /* ライムグリーンでターミナル感を演出 */
+      word-break: break-all;
+      background: rgba(130,255,3,0.06);
+      border: 1px solid rgba(130,255,3,0.18);
+      border-radius: 6px;
+      padding: 8px 10px;
+      line-height: 1.6;
+    }
+
+    /* プログレスバー */
+    .bc-progress-bar {
+      height: 6px;
+      background: rgba(123,47,247,0.18);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+    #bc-progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #7b2ff7, #00d4ff);
+      border-radius: 3px;
+      transition: width 1.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    #bc-progress-fill.running { width: 100%; }
+
+    /* 完了カード */
+    #bc-result-card {
+      background: rgba(123,47,247,0.08);
+      border: 1px solid rgba(123,47,247,0.28);
+      border-radius: 10px;
+      padding: 16px;
+    }
+    .bc-result-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 14px;
+    }
+    .bc-result-row:last-child { margin-bottom: 0; }
+    .bc-result-label {
+      font-size: 11px;
+      color: rgba(200,210,255,0.55);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    .bc-result-value {
+      font-size: 13px;
+      color: #dde0ff;
+      word-break: break-all;
+    }
+    .bc-result-value.mono {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 12px;
+      color: #82ff03;
+    }
+    .bc-result-value.network { color: #00d4ff; }
+
+    /* 完了ヘッダー */
+    #bc-step3-label {
+      font-size: 15px;
+      font-weight: bold;
+      color: #00d4ff;
+      margin-bottom: 14px;
+    }
+
+    /* 注記 */
+    #bc-disclaimer {
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      font-size: 11px;
+      color: rgba(180,180,200,0.55);
+      line-height: 1.6;
+    }
+
     /* ===== フッター ===== */
     footer {
       text-align: center;
@@ -1167,6 +1341,10 @@
               <button id="excel-export-btn" title="CSV形式でダウンロードします">
                 📊 Excel出力
               </button>
+              <!-- BC保存（デモ）ボタン -->
+              <button id="bc-btn" title="ブロックチェーン保存デモ（将来展望）">
+                ⛓️ BC保存（デモ）
+              </button>
               <!-- Markdownコピーボタン -->
               <button id="copy-btn" title="Markdown形式でクリップボードにコピーします">
                 📋 Markdownをコピー
@@ -1204,6 +1382,66 @@
   <footer>
     AI要件定義システム &copy; 2026 &nbsp;|&nbsp; Powered by Claude API
   </footer>
+
+  <!-- ===== BC保存デモ モーダル ===== -->
+  <div id="bc-modal-overlay">
+    <div id="bc-modal">
+
+      <!-- ヘッダー -->
+      <div id="bc-modal-header">
+        <div id="bc-modal-title">⛓️ ブロックチェーン保存</div>
+        <button id="bc-close-btn" title="閉じる">×</button>
+      </div>
+
+      <!-- Step 1：SHA-256ハッシュ計算 -->
+      <div class="bc-step" id="bc-step1">
+        <div class="bc-step-label">🔐 要件定義書をハッシュ化しています...</div>
+        <div class="bc-mono" id="bc-hash-display">計算中...</div>
+      </div>
+
+      <!-- Step 2：ネットワーク接続 -->
+      <div class="bc-step" id="bc-step2">
+        <div class="bc-step-label">📡 イーサリアムテストネット（Sepolia）に接続中...</div>
+        <div class="bc-progress-bar">
+          <div id="bc-progress-fill"></div>
+        </div>
+      </div>
+
+      <!-- Step 3：完了＋結果カード -->
+      <div class="bc-step" id="bc-step3">
+        <div id="bc-step3-label">✅ ブロックチェーンへの記録が完了しました</div>
+        <div id="bc-result-card">
+          <div class="bc-result-row">
+            <span class="bc-result-label">ドキュメントHash</span>
+            <span class="bc-result-value mono" id="bc-result-hash">—</span>
+          </div>
+          <div class="bc-result-row">
+            <span class="bc-result-label">トランザクションID</span>
+            <span class="bc-result-value mono" id="bc-result-txid">—</span>
+          </div>
+          <div class="bc-result-row">
+            <span class="bc-result-label">ブロック番号</span>
+            <span class="bc-result-value" id="bc-result-block">—</span>
+          </div>
+          <div class="bc-result-row">
+            <span class="bc-result-label">タイムスタンプ</span>
+            <span class="bc-result-value" id="bc-result-ts">—</span>
+          </div>
+          <div class="bc-result-row">
+            <span class="bc-result-label">ネットワーク</span>
+            <span class="bc-result-value network">Ethereum Sepolia Testnet</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 注記 -->
+      <div id="bc-disclaimer">
+        ※ これは将来展望のデモです。現在は実際のブロックチェーンには接続していません。
+        本機能は今後のロードマップに含まれています。
+      </div>
+
+    </div>
+  </div>
 
   <script>
     // ===== PDF.js ワーカーの初期設定（CDNスクリプト読み込み直後に実行）=====
@@ -2368,6 +2606,58 @@
         }
       });
 
+      // ============================================================
+      // ⑭ BC保存デモ
+      // ============================================================
+      var bcBtn         = document.getElementById('bc-btn');
+      var bcOverlay     = document.getElementById('bc-modal-overlay');
+      var bcCloseBtn    = document.getElementById('bc-close-btn');
+
+      // モーダルを閉じる
+      function closeBcModal() {
+        bcOverlay.classList.remove('active');
+      }
+      bcCloseBtn.addEventListener('click', closeBcModal);
+      bcOverlay.addEventListener('click', function(e) {
+        if (e.target === bcOverlay) closeBcModal(); // オーバーレイ背景クリックで閉じる
+      });
+
+      // BC保存デモのメイン処理
+      bcBtn.addEventListener('click', async function() {
+        var md = window.generatedMarkdown;
+        if (!md) { alert('先に要件定義書を生成してください。'); return; }
+
+        // ===== モーダルを開いて全ステップをリセットする =====
+        bcOverlay.classList.add('active');
+        ['bc-step1','bc-step2','bc-step3'].forEach(function(id) {
+          document.getElementById(id).classList.remove('visible');
+        });
+        var progressFill = document.getElementById('bc-progress-fill');
+        progressFill.classList.remove('running');
+        progressFill.style.transition = 'none'; // リセット時はアニメーションなし
+        document.getElementById('bc-hash-display').textContent = '計算中...';
+
+        // ===== Step 1：SHA-256ハッシュ計算（Web Crypto API）=====
+        document.getElementById('bc-step1').classList.add('visible');
+        var hash = await bcComputeSHA256(md);
+        document.getElementById('bc-hash-display').textContent = hash;
+
+        // ===== Step 2：ネットワーク接続プログレスバー（0.8秒後に開始）=====
+        await bcDelay(800);
+        document.getElementById('bc-step2').classList.add('visible');
+        await bcDelay(80); // DOMレンダリング確定を待つ
+        progressFill.style.transition = ''; // トランジションを復元する
+        progressFill.classList.add('running');
+
+        // ===== Step 3：完了＋結果カード（プログレスバー完了後）=====
+        await bcDelay(1450);
+        document.getElementById('bc-result-hash').textContent  = hash;
+        document.getElementById('bc-result-txid').textContent  = '0x' + bcRandomHex(64);
+        document.getElementById('bc-result-block').textContent = (Math.floor(Math.random() * 9000000) + 1000000).toLocaleString();
+        document.getElementById('bc-result-ts').textContent    = new Date().toLocaleString('ja-JP');
+        document.getElementById('bc-step3').classList.add('visible');
+      });
+
     }); // DOMContentLoaded end
 
     // ============================================================
@@ -2456,6 +2746,32 @@
         .replace(/>/g,  '&gt;')
         .replace(/"/g,  '&quot;')
         .replace(/'/g,  '&#039;');
+    }
+
+    // ============================================================
+    // BC保存デモ ヘルパー関数
+    // ============================================================
+
+    // 指定ミリ秒待機するPromiseを返す
+    function bcDelay(ms) {
+      return new Promise(function(resolve) { setTimeout(resolve, ms); });
+    }
+
+    // Web Crypto API で SHA-256 を計算して16進数文字列で返す
+    async function bcComputeSHA256(text) {
+      var encoded     = new TextEncoder().encode(text);
+      var hashBuffer  = await crypto.subtle.digest('SHA-256', encoded);
+      var hashArray   = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+    }
+
+    // 指定桁数のランダム16進数文字列を生成する（トランザクションID用）
+    function bcRandomHex(length) {
+      var result = '';
+      for (var i = 0; i < length; i++) {
+        result += Math.floor(Math.random() * 16).toString(16);
+      }
+      return result;
     }
   </script>
 

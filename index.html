@@ -523,11 +523,60 @@
 
     #edit-done-btn:hover { background: rgba(1,0,190,0.13); }
 
+    /* ===== 編集ヒントテキスト ===== */
+    #edit-hint {
+      font-size: 12px;
+      color: rgba(1,0,190,0.38);
+      margin-bottom: 10px;
+      letter-spacing: 0.3px;
+      user-select: none; /* ヒントテキスト自体は選択不可 */
+    }
+
+    /* ===== エクスポートボタン（Word / Excel）===== */
+    #word-export-btn {
+      background: #0100be;
+      color: white;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: bold;
+      cursor: pointer;
+      font-family: inherit;
+      transition: opacity 0.2s, box-shadow 0.2s;
+    }
+    #word-export-btn:hover { opacity: 0.85; box-shadow: 0 2px 10px rgba(1,0,190,0.35); }
+
+    #excel-export-btn {
+      background: #1a7a1a;
+      color: white;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: bold;
+      cursor: pointer;
+      font-family: inherit;
+      transition: opacity 0.2s, box-shadow 0.2s;
+    }
+    #excel-export-btn:hover { opacity: 0.85; box-shadow: 0 2px 10px rgba(26,122,26,0.35); }
+
     /* ===== 出力コンテンツのMarkdownスタイル ===== */
     #output-content {
       line-height: 1.9;
       font-size: 15px;
       color: var(--text);
+      border-radius: 10px;
+      padding: 6px;
+      outline: none;
+      transition: box-shadow 0.3s ease;
+    }
+
+    /* 常時編集可能：フォーカス時に#82ff03のグローエフェクトで光る */
+    #output-content:focus {
+      box-shadow:
+        0 0 0 1px rgba(130,255,3,0.50),
+        0 0 18px rgba(130,255,3,0.22);
     }
 
     /* 見出し1（# ）→ <h2>：#0100be文字＋#82ff03アンダーラインでメリハリをつける ===== */
@@ -572,15 +621,6 @@
     }
 
     #output-content p { margin: 8px 0; }
-
-    /* 編集中のスタイル */
-    #output-content[contenteditable="true"] {
-      border: 1px dashed rgba(130,255,3,0.55);
-      border-radius: 10px;
-      padding: 16px;
-      outline: none;
-      cursor: text;
-    }
 
     /* ===== スクロールフェードイン（IntersectionObserver）===== */
     .scroll-fade {
@@ -869,20 +909,20 @@
       <!-- 左カラム（70%）：要件定義書カード -->
       <div id="output-col">
         <div class="card scroll-fade" id="output-card">
-          <!-- 出力ヘッダー（タイトル＋編集・コピーボタン）-->
+          <!-- 出力ヘッダー（タイトル＋エクスポート・コピーボタン）-->
           <div id="output-header">
             <div class="section-title" style="margin-bottom:0; border-bottom:none; padding-bottom:0;">
               📄 生成された要件定義書
             </div>
-            <!-- ボタングループ -->
+            <!-- ボタングループ（エクスポートとコピー）-->
             <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-              <!-- 編集ボタン：生成後に表示 -->
-              <button id="edit-btn" style="display:none;" title="要件定義書を直接編集します">
-                ✏️ 編集する
+              <!-- Word出力ボタン -->
+              <button id="word-export-btn" title="Word形式（.doc）でダウンロードします">
+                📄 Word出力
               </button>
-              <!-- 編集完了ボタン：編集中に表示 -->
-              <button id="edit-done-btn" style="display:none;" title="編集を完了して閲覧モードに戻ります">
-                ✅ 編集を完了する
+              <!-- Excel(CSV)出力ボタン -->
+              <button id="excel-export-btn" title="CSV形式でダウンロードします">
+                📊 Excel出力
               </button>
               <!-- Markdownコピーボタン -->
               <button id="copy-btn" title="Markdown形式でクリップボードにコピーします">
@@ -890,7 +930,9 @@
               </button>
             </div>
           </div>
-          <!-- Markdownをレンダリングして表示するエリア -->
+          <!-- 編集ヒントテキスト：クリックで直接編集できることをユーザーに伝える -->
+          <div id="edit-hint">📝 直接クリックして編集できます</div>
+          <!-- Markdownをレンダリングして表示するエリア（常時contenteditable）-->
           <div id="output-content"></div>
         </div>
       </div>
@@ -1405,13 +1447,21 @@
           var outputAreaEl = document.getElementById('output-area');
           outputAreaEl.style.display = 'flex';
 
-          // 編集状態をリセットする（再生成時に前回の編集モードが残らないように）
+          // 出力エリアを初期化する
           var outputContentEl = document.getElementById('output-content');
-          outputContentEl.style.opacity  = '1';
+          outputContentEl.style.opacity    = '1';
           outputContentEl.style.transition = '';
-          outputContentEl.removeAttribute('contenteditable');
-          document.getElementById('edit-btn').style.display      = 'inline-block';
-          document.getElementById('edit-done-btn').style.display = 'none';
+          // 生成後は常に編集可能にする（以後 contenteditable を外さない）
+          outputContentEl.contentEditable = 'true';
+
+          // インライン編集内容をチャットコンテキスト・Markdownコピー用に同期する
+          // （DOMContentLoaded 内で一度だけ登録する）
+          if (!outputContentEl._editSyncAdded) {
+            outputContentEl._editSyncAdded = true;
+            outputContentEl.addEventListener('input', function() {
+              window.generatedMarkdown = outputContentEl.innerText;
+            });
+          }
 
           // Markdownをレンダリングして表示する
           renderMarkdown(markdownText);
@@ -1638,7 +1688,9 @@
         var loadingBubble = addChatLoading();
 
         try {
-          var currentMarkdown = window.generatedMarkdown || '';
+          // インライン編集も反映するため、現在の表示テキストを優先する
+          var outputEl = document.getElementById('output-content');
+          var currentMarkdown = (outputEl && outputEl.innerText.trim()) || window.generatedMarkdown || '';
 
           // システムプロンプト：修正後の要件定義書全文のみを出力させる
           var chatSystemPrompt =
@@ -1697,25 +1749,118 @@
       });
 
       // ============================================================
-      // ⑫ 編集ボタン
+      // ⑫ エクスポートボタン（Word / Excel(CSV)）
       // ============================================================
-      var editBtn          = document.getElementById('edit-btn');
-      var editDoneBtn      = document.getElementById('edit-done-btn');
-      var outputEditTarget = document.getElementById('output-content');
 
-      // 「編集する」ボタンのクリック：contenteditable を有効にして直接編集可能にする
-      editBtn.addEventListener('click', function() {
-        outputEditTarget.contentEditable = 'true';
-        outputEditTarget.focus();
-        editBtn.style.display     = 'none';
-        editDoneBtn.style.display = 'inline-block';
+      // 現在日付を YYYY-MM-DD 形式で返すヘルパー
+      function getExportDateStr() {
+        var d = new Date();
+        return d.getFullYear() + '-' +
+          ('0' + (d.getMonth() + 1)).slice(-2) + '-' +
+          ('0' + d.getDate()).slice(-2);
+      }
+
+      // Markdown → Word 用 HTML 文字列変換（escapeHtml はグローバル関数を使用）
+      function markdownToWordHtml(md) {
+        var lines  = md.split('\n');
+        var out    = [];
+        var inList = false, inOl = false;
+        function closeLists() {
+          if (inList) { out.push('</ul>'); inList = false; }
+          if (inOl)   { out.push('</ol>'); inOl   = false; }
+        }
+        lines.forEach(function(line) {
+          if      (line.startsWith('### ')) { closeLists(); out.push('<h3>' + escapeHtml(line.slice(4)) + '</h3>'); }
+          else if (line.startsWith('## '))  { closeLists(); out.push('<h2>' + escapeHtml(line.slice(3)) + '</h2>'); }
+          else if (line.startsWith('# '))   { closeLists(); out.push('<h1>' + escapeHtml(line.slice(2)) + '</h1>'); }
+          else if (/^\d+\. /.test(line)) {
+            if (inList) { out.push('</ul>'); inList = false; }
+            if (!inOl)  { out.push('<ol>');  inOl   = true;  }
+            out.push('<li>' + escapeHtml(line.replace(/^\d+\. /, '')) + '</li>');
+          } else if (line.startsWith('- ') || line.startsWith('* ')) {
+            if (inOl)    { out.push('</ol>'); inOl   = false; }
+            if (!inList) { out.push('<ul>');  inList = true;  }
+            out.push('<li>' + escapeHtml(line.slice(2)) + '</li>');
+          } else if (line.trim() === '---') { closeLists(); out.push('<hr>'); }
+          else if (line.trim() === '')       { closeLists(); }
+          else { closeLists(); out.push('<p>' + escapeHtml(line) + '</p>'); }
+        });
+        closeLists();
+        return out.join('\n');
+      }
+
+      // ===== Word（.doc）ダウンロード =====
+      document.getElementById('word-export-btn').addEventListener('click', function() {
+        var md = window.generatedMarkdown;
+        if (!md) { alert('先に要件定義書を生成してください。'); return; }
+
+        var bodyHtml = markdownToWordHtml(md);
+        var wordDoc =
+          '<html xmlns:o="urn:schemas-microsoft-com:office:office"' +
+          '      xmlns:w="urn:schemas-microsoft-com:office:word"' +
+          '      xmlns="http://www.w3.org/TR/REC-html40">' +
+          '<head><meta charset="UTF-8"><style>' +
+          'body{font-family:"MS Mincho","ＭＳ 明朝",serif;font-size:11pt;line-height:1.8;margin:2cm;}' +
+          'h1{font-size:16pt;color:#0100be;border-bottom:2px solid #82ff03;padding-bottom:4pt;margin-top:18pt;}' +
+          'h2{font-size:13pt;color:#0100be;margin-top:14pt;}' +
+          'h3{font-size:11pt;color:#333;margin-top:10pt;}' +
+          'ul,ol{margin-left:18pt;}li{margin-bottom:3pt;}p{margin:4pt 0;}' +
+          'hr{border:none;border-top:1px solid #ccc;margin:8pt 0;}' +
+          '</style></head><body>' + bodyHtml + '</body></html>';
+
+        var blob = new Blob(['\ufeff' + wordDoc], { type: 'application/msword' });
+        var url  = URL.createObjectURL(blob);
+        var a    = document.createElement('a');
+        a.href     = url;
+        a.download = '要件定義書_' + getExportDateStr() + '.doc';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
       });
 
-      // 「編集を完了する」ボタンのクリック：閲覧モードに戻す（編集内容はHTMLとして保持）
-      editDoneBtn.addEventListener('click', function() {
-        outputEditTarget.removeAttribute('contenteditable');
-        editDoneBtn.style.display = 'none';
-        editBtn.style.display     = 'inline-block';
+      // ===== Excel（.csv）ダウンロード =====
+      document.getElementById('excel-export-btn').addEventListener('click', function() {
+        var md = window.generatedMarkdown;
+        if (!md) { alert('先に要件定義書を生成してください。'); return; }
+
+        // Markdown を「# セクション」単位に分割して2列CSVに変換する
+        var rows           = [['セクション', '内容']];
+        var currentSection = '';
+        var currentLines   = [];
+
+        md.split('\n').forEach(function(line) {
+          // 「# 」で始まり「## 」でない行をセクション区切りとする
+          if (line.startsWith('# ') && !line.startsWith('## ')) {
+            if (currentSection) {
+              rows.push([currentSection, currentLines.join('\n').trim()]);
+            }
+            currentSection = line.slice(2).trim();
+            currentLines   = [];
+          } else {
+            currentLines.push(line);
+          }
+        });
+        if (currentSection) {
+          rows.push([currentSection, currentLines.join('\n').trim()]);
+        }
+
+        // CSV エスケープ：ダブルクォートを "" に変換してセルを " で囲む
+        var csv = rows.map(function(row) {
+          return row.map(function(cell) {
+            return '"' + cell.replace(/"/g, '""') + '"';
+          }).join(',');
+        }).join('\r\n');
+
+        var blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+        var url  = URL.createObjectURL(blob);
+        var a    = document.createElement('a');
+        a.href     = url;
+        a.download = '要件定義書_' + getExportDateStr() + '.csv';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
       });
 
     }); // DOMContentLoaded end

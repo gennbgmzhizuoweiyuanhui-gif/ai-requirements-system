@@ -138,61 +138,60 @@ var server = http.createServer(function(req, res) {
     }
 
     // ===== Claude（Anthropic）API へのルーティング =====
-    // Anthropic API に必要なフィールドだけを明示的に組み立てる
-    // （provider / apiKey などの内部フィールドは意図的に除外する）
-    var claudeBody = {
-      model:      parsed.model      || 'claude-sonnet-4-5', // フォールバックも正しいモデルIDに修正
-      max_tokens: parsed.max_tokens || 4096,
-      system:     parsed.system,
-      messages:   parsed.messages
+    // ユーザー指示に従い、Anthropicへ送るフィールドを厳密に4つだけ取り出して構築する。
+    // parsed（受信ボディ）から provider / その他の内部フィールドは一切含めない。
+    var anthropicBody = {
+      model:      'claude-sonnet-4-20250514', // 使用モデルを固定する
+      max_tokens: 4096,                        // 最大生成トークン数
+      system:     parsed.system   || '',       // システムプロンプト（未指定時は空文字）
+      messages:   parsed.messages              // ユーザーメッセージ配列
     };
-    console.log('[Claude] 送信ボディ:', JSON.stringify(claudeBody).slice(0, 200) + '...');
-    var bodyBuffer = Buffer.from(JSON.stringify(claudeBody)); // Content-Lengthを正確に計算するためBufferに変換
-    var options = {
-      hostname: 'api.anthropic.com',      // Anthropic APIのホスト名
-      path:     '/v1/messages',            // メッセージ生成エンドポイント
-      method:   'POST',                    // HTTPメソッド
+
+    // デバッグ：Anthropicへ送信するボディの先頭200文字をログ出力する
+    console.log('[Claude] 送信ボディ:', JSON.stringify(anthropicBody).slice(0, 200));
+
+    var anthropicBodyBuffer = Buffer.from(JSON.stringify(anthropicBody));
+
+    var anthropicOptions = {
+      hostname: 'api.anthropic.com',
+      path:     '/v1/messages',
+      method:   'POST',
       headers: {
-        'Content-Type':      'application/json', // JSONを送ることを宣言
-        'x-api-key':         apiKey,              // ブラウザから受け取ったAPIキーをそのまま転送
-        'anthropic-version': '2023-06-01',        // APIバージョンを指定
-        'Content-Length':    bodyBuffer.length    // ボディのバイト数を正確に指定
-        // ※ anthropic-dangerous-direct-browser-calls は不要（サーバーからの呼び出しなので）
+        'Content-Type':      'application/json',
+        'x-api-key':         apiKey,           // ヘッダーから取得したAPIキー（req.body経由は使わない）
+        'anthropic-version': '2023-06-01',
+        'Content-Length':    anthropicBodyBuffer.length
       }
     };
 
-    // ===== Anthropic API へリクエストを送信する =====
-    var proxyReq = https.request(options, function(proxyRes) {
-      console.log('[Claude] レスポンスステータス:', proxyRes.statusCode);
-      // エラーレスポンスの場合はボディを収集してログに出力する
-      if (proxyRes.statusCode !== 200) {
+    var anthropicReq = https.request(anthropicOptions, function(anthropicRes) {
+      console.log('[Claude] レスポンスステータス:', anthropicRes.statusCode);
+      // エラーレスポンスはボディを収集してログ出力してからブラウザへ返す
+      if (anthropicRes.statusCode !== 200) {
         var errBody = '';
-        proxyRes.on('data', function(c) { errBody += c; });
-        proxyRes.on('end', function() {
+        anthropicRes.on('data', function(c) { errBody += c; });
+        anthropicRes.on('end', function() {
           console.error('[Claude] エラーレスポンス:', errBody);
-          res.writeHead(proxyRes.statusCode, { 'Content-Type': 'application/json' });
+          res.writeHead(anthropicRes.statusCode, { 'Content-Type': 'application/json' });
           res.end(errBody);
         });
         return;
       }
       // 正常レスポンスはそのままブラウザへパイプする
-      res.writeHead(proxyRes.statusCode, { 'Content-Type': 'application/json' });
-      proxyRes.pipe(res);
+      res.writeHead(anthropicRes.statusCode, { 'Content-Type': 'application/json' });
+      anthropicRes.pipe(res);
     });
 
-    // ===== Anthropic API への接続エラー処理（ネット切断など）=====
-    proxyReq.on('error', function(err) {
-      console.error('Anthropic API への接続エラー:', err.message);
-      // まだレスポンスを送っていない場合のみエラーを返す
+    anthropicReq.on('error', function(err) {
+      console.error('[Claude] 接続エラー:', err.message);
       if (!res.headersSent) {
         res.writeHead(502, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Anthropic API への接続に失敗しました: ' + err.message }));
+        res.end(JSON.stringify({ error: 'Anthropic APIへの接続に失敗しました: ' + err.message }));
       }
     });
 
-    // ===== ブラウザから受け取ったリクエストボディを Anthropic API へ転送する =====
-    proxyReq.write(bodyBuffer);
-    proxyReq.end();
+    anthropicReq.write(anthropicBodyBuffer);
+    anthropicReq.end();
   });
 
   // ===== ブラウザからのリクエスト受信エラー処理 =====

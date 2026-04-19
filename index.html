@@ -455,7 +455,7 @@
           // ===== Claude API にリクエストを送る =====
 
           // Claude API のエンドポイントURL
-          var apiUrl = 'https://api.anthropic.com/v1/messages';
+          var apiUrl = 'http://localhost:3001/api/claude'; // ローカルプロキシサーバー経由でAnthropicAPIを呼び出す（CORSエラー回避）
 
           // APIに送るリクエストの内容を作成する
           var requestBody = {
@@ -511,10 +511,10 @@
           var response = await fetch(apiUrl, {
             method: 'POST', // HTTPメソッドはPOST
             headers: {
-              'Content-Type': 'application/json',         // JSONデータを送ることを宣言
-              'x-api-key': apiKey,                        // APIキーを認証ヘッダーに設定
-              'anthropic-version': '2023-06-01',          // APIのバージョンを指定
-              'anthropic-dangerous-direct-browser-calls': 'true' // ブラウザからの直接呼び出しを許可
+              'Content-Type': 'application/json', // JSONデータを送ることを宣言
+              'x-api-key': apiKey                 // APIキーをプロキシサーバーへ転送（サーバーがAnthropicへ中継する）
+              // anthropic-version はサーバー側で付与するため不要
+              // anthropic-dangerous-direct-browser-calls はサーバー経由のためヘッダー不要
             },
             body: JSON.stringify(requestBody) // リクエストボディをJSON文字列に変換
           });

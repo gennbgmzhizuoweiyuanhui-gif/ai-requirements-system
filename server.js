@@ -138,13 +138,15 @@ var server = http.createServer(function(req, res) {
     }
 
     // ===== Claude（Anthropic）API へのルーティング =====
-    // provider フィールドを除いた Claude 用ボディを組み立てる
+    // Anthropic API に必要なフィールドだけを明示的に組み立てる
+    // （provider / apiKey などの内部フィールドは意図的に除外する）
     var claudeBody = {
-      model:      parsed.model      || 'claude-sonnet-4-20250514',
-      max_tokens: parsed.max_tokens || 4000,
+      model:      parsed.model      || 'claude-sonnet-4-5', // フォールバックも正しいモデルIDに修正
+      max_tokens: parsed.max_tokens || 4096,
       system:     parsed.system,
       messages:   parsed.messages
     };
+    console.log('[Claude] 送信ボディ:', JSON.stringify(claudeBody).slice(0, 200) + '...');
     var bodyBuffer = Buffer.from(JSON.stringify(claudeBody)); // Content-Lengthを正確に計算するためBufferに変換
     var options = {
       hostname: 'api.anthropic.com',      // Anthropic APIのホスト名

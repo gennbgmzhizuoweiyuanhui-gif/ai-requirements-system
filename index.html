@@ -2,428 +2,576 @@
 <!-- AI要件定義システム：現場の曖昧な発話を要件定義書に変換するWebアプリ -->
 <html lang="ja">
 <head>
-  <!-- 文字コードをUTF-8に設定（日本語対応） -->
   <meta charset="UTF-8">
-  <!-- スマホ・タブレットでも正しく表示されるようにビューポートを設定 -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- ブラウザのタブに表示されるタイトル -->
   <title>AI要件定義システム</title>
   <style>
-    /* ===== 全体リセット：ブラウザごとのデフォルトスタイルをそろえる ===== */
-    * {
-      box-sizing: border-box; /* パディングをサイズに含める */
-      margin: 0;              /* 余白をゼロリセット */
-      padding: 0;             /* 内側余白をゼロリセット */
+    /* ===== CSS カスタムプロパティ（テーマカラーを一元管理）===== */
+    :root {
+      --bg-base:      #0a0a0f;                              /* ページ背景（深い黒）*/
+      --bg-card:      rgba(18, 18, 26, 0.85);               /* カード背景（半透明）*/
+      --cyan:         #00d4ff;                              /* アクセント：シアン */
+      --blue:         #0066ff;                              /* アクセント：ブルー */
+      --grad:         linear-gradient(135deg, #00d4ff, #0066ff); /* メイングラデーション */
+      --text:         #e2e8f0;                              /* 主要テキスト */
+      --text-sub:     #94a3b8;                              /* サブテキスト */
+      --border:       rgba(0, 212, 255, 0.12);              /* 枠線 */
+      --glow-near:    rgba(0, 212, 255, 0.20);              /* 近距離グロー */
+      --glow-far:     rgba(0, 212, 255, 0.07);              /* 遠距離グロー */
     }
 
-    /* ===== ページ全体のスタイル ===== */
+    /* ===== 全体リセット ===== */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ===== ページ全体：ダークテーマ＋光源グラデーション ===== */
     body {
-      font-family: 'Meiryo', 'メイリオ', 'Hiragino Sans', sans-serif; /* 日本語フォント */
-      font-size: 16px;           /* 基本フォントサイズ */
-      background-color: #f0f4f8; /* 薄いグレー背景 */
-      color: #2d3748;            /* 文字色：濃いグレー */
-      min-height: 100vh;         /* 画面いっぱいの高さ */
+      font-family: 'Meiryo', 'メイリオ', 'Hiragino Sans', sans-serif;
+      font-size: 16px;
+      background-color: var(--bg-base);
+      /* 微妙な光源で奥行き感を演出する */
+      background-image:
+        radial-gradient(ellipse at 15% 15%, rgba(0,102,255,0.07) 0%, transparent 55%),
+        radial-gradient(ellipse at 85% 85%, rgba(0,212,255,0.05) 0%, transparent 55%);
+      color: var(--text);
+      min-height: 100vh;
     }
 
-    /* ===== ヘッダー部分 ===== */
+    /* ===== ヘッダー：グラスモーフィズム＋sticky ===== */
     header {
-      background-color: #2b6cb0; /* 建設業らしい落ち着いたブルー */
-      color: white;              /* 文字色：白 */
-      padding: 16px 24px;        /* 内側余白 */
-      display: flex;             /* 横並びレイアウト */
-      align-items: center;       /* 縦方向中央揃え */
-      flex-wrap: wrap;           /* 画面が狭いときは折り返す */
-      gap: 12px;                 /* 要素間の隙間 */
+      background: rgba(10, 10, 15, 0.92);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      position: sticky; /* スクロールしてもヘッダーを固定する */
+      top: 0;
+      z-index: 100;
     }
 
-    /* ===== ヘッダーのタイトル文字 ===== */
+    /* ===== タイトル：グラデーションテキスト ===== */
     header h1 {
-      font-size: 20px;  /* タイトルのフォントサイズ */
-      flex: 1;          /* 残りスペースを占有する */
+      font-size: 18px;
+      flex: 1;
+      background: var(--grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: 0.5px;
     }
 
-    /* ===== APIキー入力欄のラベル ===== */
+    /* ===== APIキーラベル ===== */
     #api-key-label {
-      font-size: 13px; /* 小さめのラベル文字 */
-      white-space: nowrap; /* 折り返さない */
+      font-size: 12px;
+      color: var(--text-sub);
+      white-space: nowrap;
     }
 
-    /* ===== APIキー入力テキストボックス ===== */
+    /* ===== APIキー入力欄 ===== */
     #api-key-input {
-      padding: 8px 12px;         /* 内側余白 */
-      border: none;              /* 枠線なし */
-      border-radius: 6px;        /* 角丸 */
-      font-size: 14px;           /* フォントサイズ */
-      width: 280px;              /* 横幅 */
-      background-color: #ebf4ff; /* 薄いブルー背景 */
-      color: #2d3748;            /* 文字色 */
+      padding: 8px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 13px;
+      width: 260px;
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+
+    #api-key-input:focus {
+      outline: none;
+      border-color: var(--cyan);
+      box-shadow: 0 0 0 2px rgba(0,212,255,0.15);
     }
 
     /* ===== メインコンテンツエリア ===== */
     main {
-      max-width: 860px;    /* 最大横幅 */
-      margin: 32px auto;   /* 上下余白＋左右自動で中央揃え */
-      padding: 0 16px;     /* 左右の余白（スマホ対応） */
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 0 16px;
     }
 
-    /* ===== セクションカード（入力・出力エリアの白いボックス） ===== */
+    /* ===== グラスモーフィズムカード ===== */
     .card {
-      background-color: white;  /* 白背景 */
-      border-radius: 10px;      /* 角丸 */
-      padding: 24px;            /* 内側余白 */
-      margin-bottom: 24px;      /* カード間の隙間 */
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08); /* 薄い影 */
+      background: var(--bg-card);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      margin-bottom: 28px;
+      box-shadow:
+        0 8px 32px rgba(0,0,0,0.5),
+        inset 0 1px 0 rgba(255,255,255,0.04); /* 上端に薄い光沢ライン */
+    }
+
+    /* 入力カードは CSS アニメーションでフェードインする */
+    #input-card {
+      animation: cardAppear 0.8s ease forwards;
+    }
+
+    @keyframes cardAppear {
+      from { opacity: 0; transform: translateY(28px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
 
     /* ===== セクションタイトル ===== */
     .section-title {
-      font-size: 15px;         /* フォントサイズ */
-      font-weight: bold;       /* 太字 */
-      color: #2b6cb0;          /* ブルー */
-      margin-bottom: 16px;     /* 下余白 */
-      padding-bottom: 8px;     /* 下内余白 */
-      border-bottom: 2px solid #bee3f8; /* 薄いブルーの下線 */
+      font-size: 11px;
+      font-weight: bold;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--cyan);
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      position: relative;
     }
 
-    /* ===== テキスト入力エリア ===== */
-    #input-textarea {
-      width: 100%;            /* 横幅いっぱい */
-      height: 160px;          /* 高さ */
-      padding: 12px;          /* 内側余白 */
-      border: 2px solid #bee3f8; /* 薄いブルー枠線 */
-      border-radius: 8px;     /* 角丸 */
-      font-size: 15px;        /* フォントサイズ（現場担当者が読みやすいサイズ） */
-      font-family: inherit;   /* 親要素のフォントを引き継ぐ */
-      resize: vertical;       /* 縦方向にだけリサイズ可能 */
-      line-height: 1.6;       /* 行間を広めにして読みやすくする */
-      color: #2d3748;         /* 文字色 */
+    /* セクションタイトル下のグラデーションラインアクセント */
+    .section-title::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      width: 48px;
+      height: 2px;
+      background: var(--grad);
+      border-radius: 2px;
     }
 
-    /* ===== テキスト入力エリア：フォーカス時の見た目 ===== */
-    #input-textarea:focus {
-      outline: none;                /* デフォルトのアウトラインを消す */
-      border-color: #2b6cb0;        /* ブルーに変える */
-      box-shadow: 0 0 0 3px rgba(43,108,176,0.15); /* 薄いブルーのグロー */
+    /* ===== テキストエリア共通スタイル ===== */
+    #input-textarea, #answer-textarea {
+      width: 100%;
+      padding: 16px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(0, 212, 255, 0.18);
+      border-radius: 12px;
+      font-size: 15px;
+      font-family: inherit;
+      resize: vertical;
+      line-height: 1.7;
+      color: var(--text);
+      transition: border-color 0.35s ease, box-shadow 0.35s ease;
+    }
+
+    #input-textarea  { height: 160px; }
+    #answer-textarea { height: 200px; }
+
+    /* プレースホルダーの色 */
+    #input-textarea::placeholder, #answer-textarea::placeholder {
+      color: rgba(148, 163, 184, 0.4);
+    }
+
+    /* ===== フォーカス時：グローエフェクト（発光）===== */
+    #input-textarea:focus, #answer-textarea:focus {
+      outline: none;
+      border-color: var(--cyan);
+      box-shadow:
+        0 0 0 1px rgba(0,212,255,0.25),   /* 内側リング */
+        0 0 20px var(--glow-near),          /* 近距離グロー */
+        0 0 55px var(--glow-far);           /* 遠距離グロー */
+    }
+
+    /* ===== 文字数カウンター ===== */
+    #char-count, #answer-char-count {
+      display: inline-block;
+      width: 100%;
+      text-align: right;
+      font-size: 12px;
+      color: var(--text-sub);
+      margin-top: 6px;
+      transition: color 0.25s ease, transform 0.15s ease;
+    }
+
+    /* 文字数変化時のバウンスアニメーション用クラス（JS で付与・解除）*/
+    .count-bump {
+      color: var(--cyan) !important;
+      transform: scale(1.12);
     }
 
     /* ===== ボタン共通スタイル ===== */
     .btn {
-      padding: 12px 24px;     /* 押しやすい大きさの内側余白 */
-      border: none;           /* 枠線なし */
-      border-radius: 8px;     /* 角丸 */
-      font-size: 15px;        /* フォントサイズ */
-      font-weight: bold;      /* 太字 */
-      cursor: pointer;        /* カーソルをポインターに */
-      transition: all 0.2s;  /* ホバー時にアニメーションをつける */
-    }
-
-    /* ===== ヒアリングボタン・生成ボタン共通スタイル ===== */
-    #hearing-btn, #generate-btn {
-      background-color: #2b6cb0; /* ブルー背景 */
-      color: white;              /* 白文字 */
-      width: 100%;               /* 横幅いっぱい */
-      margin-top: 16px;          /* 上余白 */
-      font-size: 17px;           /* 少し大きめの文字 */
-    }
-
-    /* ===== ヒアリングボタン・生成ボタン：ホバー時 ===== */
-    #hearing-btn:hover, #generate-btn:hover {
-      background-color: #2c5282; /* 少し暗くする */
-      transform: translateY(-1px); /* 少し浮き上がる */
-    }
-
-    /* ===== ヒアリングボタン・生成ボタン：ローディング中（非活性状態） ===== */
-    #hearing-btn:disabled, #generate-btn:disabled {
-      background-color: #a0aec0; /* グレーに変える */
-      cursor: not-allowed;       /* カーソルを禁止マークに */
-      transform: none;           /* アニメーションなし */
-    }
-
-    /* ===== 文字数カウンター ===== */
-    #char-count {
-      text-align: right;   /* 右揃え */
-      font-size: 12px;     /* 小さい文字 */
-      color: #718096;      /* グレー */
-      margin-top: 4px;     /* 上余白 */
-    }
-
-    /* ===== 回答入力エリア（質問カード内）===== */
-    #answer-textarea {
-      width: 100%;               /* 横幅いっぱい */
-      height: 200px;             /* 高さ（質問への回答は少し高め）*/
-      padding: 12px;             /* 内側余白 */
-      border: 2px solid #bee3f8; /* 薄いブルー枠線 */
-      border-radius: 8px;        /* 角丸 */
-      font-size: 15px;           /* フォントサイズ */
-      font-family: inherit;      /* 親要素のフォントを引き継ぐ */
-      resize: vertical;          /* 縦方向にだけリサイズ可能 */
-      line-height: 1.6;          /* 行間を広めにして読みやすくする */
-      color: #2d3748;            /* 文字色 */
-    }
-
-    /* ===== 回答入力エリア：フォーカス時の見た目 ===== */
-    #answer-textarea:focus {
-      outline: none;
-      border-color: #2b6cb0;
-      box-shadow: 0 0 0 3px rgba(43,108,176,0.15);
-    }
-
-    /* ===== 回答の文字数カウンター ===== */
-    #answer-char-count {
-      text-align: right;
-      font-size: 12px;
-      color: #718096;
-      margin-top: 4px;
-    }
-
-    /* ===== AIの質問表示エリア ===== */
-    #question-content {
-      white-space: pre-wrap;    /* 改行・スペースをそのまま表示する */
-      line-height: 1.9;         /* 読みやすい行間 */
-      font-size: 15px;          /* フォントサイズ */
-      color: #2d3748;           /* 文字色 */
-      background: #f7fafc;      /* 薄いグレー背景（質問エリアをわかりやすくする）*/
-      border: 1px solid #e2e8f0; /* 薄いグレー枠線 */
-      border-radius: 8px;        /* 角丸 */
-      padding: 16px;             /* 内側余白 */
-      margin-bottom: 4px;        /* 回答エリアとの間隔 */
-    }
-
-    /* ===== 回答セクションの小タイトル ===== */
-    .answer-section-label {
-      font-size: 14px;
+      padding: 13px 24px;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
       font-weight: bold;
-      color: #4a5568;
-      margin: 20px 0 8px;
+      font-family: inherit;
+      cursor: pointer;
+      position: relative;  /* リップルエフェクト用 */
+      overflow: hidden;    /* リップルがはみ出ないように */
+      transition: transform 0.2s ease, box-shadow 0.3s ease, opacity 0.4s ease;
     }
 
-    /* ===== 質問カード内のローディング表示 ===== */
-    #question-loading-area {
+    /* ===== ヒアリングボタン・生成ボタン共通：グラデーション ===== */
+    #hearing-btn, #generate-btn {
+      background: var(--grad);
+      color: white;
+      width: 100%;
+      margin-top: 20px;
+      font-size: 15px;
+      letter-spacing: 0.5px;
+      box-shadow: 0 4px 20px rgba(0, 102, 255, 0.3);
+    }
+
+    /* ホバー時：浮き上がり＋パルスグローアニメーション */
+    #hearing-btn:not(:disabled):hover, #generate-btn:not(:disabled):hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 32px rgba(0,212,255,0.5);
+      animation: btnPulse 2s ease-in-out infinite;
+    }
+
+    @keyframes btnPulse {
+      0%, 100% { box-shadow: 0 4px 20px rgba(0,102,255,0.3); }
+      50%       { box-shadow: 0 4px 36px rgba(0,212,255,0.7), 0 0 70px rgba(0,212,255,0.2); }
+    }
+
+    /* 非活性状態 */
+    #hearing-btn:disabled, #generate-btn:disabled {
+      background: rgba(255,255,255,0.08);
+      color: var(--text-sub);
+      cursor: not-allowed;
+      transform: none !important;
+      box-shadow: none !important;
+      animation: none !important;
+    }
+
+    /* ===== 「要件定義書を生成する」ボタン：初期は非表示でスライドアップ演出 ===== */
+    #generate-btn {
+      opacity: 0;
+      transform: translateY(18px);
+      pointer-events: none; /* 非表示中はクリック不可 */
+    }
+
+    /* JS で付与するクラス：スライドアップして出現する */
+    #generate-btn.slide-up {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    /* 非活性時は slide-up の transform を上書きする */
+    #generate-btn.slide-up:disabled {
+      transform: none !important;
+    }
+
+    /* ===== リップルエフェクト（波紋）===== */
+    .ripple {
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.3);
+      width: 10px;
+      height: 10px;
+      margin-left: -5px;  /* クリック座標を中心にするための補正 */
+      margin-top:  -5px;
+      transform: scale(0);
+      animation: rippleAnim 0.55s linear;
+      pointer-events: none;
+    }
+
+    @keyframes rippleAnim {
+      to { transform: scale(28); opacity: 0; }
+    }
+
+    /* ===== 音声入力ボタン ===== */
+    #voice-btn {
+      background: rgba(0,212,255,0.07);
+      border: 1px solid rgba(0,212,255,0.22);
+      color: var(--cyan);
+    }
+
+    /* 録音中：赤いパルスアニメーション */
+    #voice-btn.recording {
+      background: rgba(229,62,62,0.12);
+      border-color: rgba(229,62,62,0.45);
+      color: #fc8181;
+      animation: recordPulse 1s ease-in-out infinite;
+    }
+
+    @keyframes recordPulse {
+      0%, 100% { box-shadow: 0 0 0 0   rgba(229,62,62,0.4); }
+      50%       { box-shadow: 0 0 0 8px rgba(229,62,62,0);   }
+    }
+
+    /* ===== 音声ステータステキスト ===== */
+    #voice-status { font-size: 13px; color: var(--text-sub); }
+
+    /* ===== ドットウェーブローディング（スピナー代替）===== */
+    #loading-area, #question-loading-area {
       display: none;
       text-align: center;
-      padding: 24px;
-      color: #2b6cb0;
-      font-size: 16px;
+      padding: 32px 0;
+      color: var(--text-sub);
+      font-size: 14px;
     }
 
-    /* ===== 質問カード内のエラー表示 ===== */
-    #question-error-area {
+    /* 5つのドットが波打つコンテナ */
+    .dot-wave {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin-bottom: 14px;
+    }
+
+    /* 各ドット：グラデーションで塗って波打ちアニメーションをずらす */
+    .dot-wave span {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--grad);
+      animation: dotWave 1.4s ease-in-out infinite;
+    }
+
+    .dot-wave span:nth-child(1) { animation-delay: 0s;    }
+    .dot-wave span:nth-child(2) { animation-delay: 0.18s; }
+    .dot-wave span:nth-child(3) { animation-delay: 0.36s; }
+    .dot-wave span:nth-child(4) { animation-delay: 0.54s; }
+    .dot-wave span:nth-child(5) { animation-delay: 0.72s; }
+
+    @keyframes dotWave {
+      0%, 60%, 100% { transform: translateY(0)    scale(0.8); opacity: 0.35; }
+      30%            { transform: translateY(-12px) scale(1.1); opacity: 1;    }
+    }
+
+    /* ===== エラーエリア ===== */
+    #error-area, #question-error-area {
       display: none;
-      background-color: #fff5f5;
-      border: 1px solid #feb2b2;
-      border-radius: 8px;
+      background: rgba(229,62,62,0.08);
+      border: 1px solid rgba(229,62,62,0.25);
+      border-radius: 10px;
       padding: 16px;
-      color: #c53030;
+      color: #fc8181;
       margin-top: 16px;
       font-size: 14px;
       line-height: 1.6;
     }
 
-    /* ===== 音声入力ボタン：録音中の状態 ===== */
-    #voice-btn.recording {
-      background-color: #e53e3e; /* 録音中は赤色に変える */
-      animation: pulse 1s infinite; /* 点滅アニメーション */
+    /* ===== 質問カードのコンテナ ===== */
+    #question-content { margin-bottom: 4px; }
+
+    /* ===== 質問個別アイテム（staggered アニメーション）===== */
+    .question-item {
+      position: relative;              /* ::before グラデーションバーの基準 */
+      background: rgba(0,212,255,0.04);
+      border: 1px solid rgba(0,212,255,0.10);
+      border-radius: 12px;
+      padding: 15px 18px 15px 22px;   /* 左にグラデーションバー分の余白 */
+      margin-bottom: 10px;
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      /* 初期状態：上から降りてくるフェードイン前 */
+      opacity: 0;
+      transform: translateY(-14px);
+      transition: opacity 0.45s ease, transform 0.45s ease;
     }
 
-    /* ===== 録音中の点滅アニメーション定義 ===== */
-    @keyframes pulse {
-      0%   { opacity: 1; }    /* 完全表示 */
-      50%  { opacity: 0.6; }  /* 半透明 */
-      100% { opacity: 1; }    /* 完全表示に戻る */
+    /* JS の setTimeout で付与するクラス：スライドインして表示される */
+    .question-item.slide-in {
+      opacity: 1;
+      transform: translateY(0);
     }
 
-    /* ===== ローディングスピナー（API呼び出し中に表示） ===== */
-    #loading-area {
-      display: none;         /* 通常は非表示 */
-      text-align: center;    /* 中央揃え */
-      padding: 32px;         /* 余白 */
-      color: #2b6cb0;        /* ブルー文字 */
-      font-size: 16px;       /* フォントサイズ */
+    /* 左端のグラデーションラインバー */
+    .question-item::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 10px;
+      bottom: 10px;
+      width: 3px;
+      background: var(--grad);
+      border-radius: 3px;
     }
 
-    /* ===== くるくる回るスピナーのアニメーション ===== */
-    .spinner {
-      display: inline-block;  /* インラインブロック */
-      width: 36px;            /* 幅 */
-      height: 36px;           /* 高さ */
-      border: 4px solid #bee3f8;         /* 薄いブルーの枠線 */
-      border-top-color: #2b6cb0;         /* 上だけ濃いブルー（回転して見える） */
-      border-radius: 50%;                /* 円形にする */
-      animation: spin 0.8s linear infinite; /* 0.8秒で1回転 */
-      margin-bottom: 12px;   /* 下余白 */
+    /* 番号バッジ（グラデーション円形）*/
+    .question-number {
+      min-width: 26px;
+      height: 26px;
+      background: var(--grad);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: bold;
+      color: white;
+      flex-shrink: 0;
+      margin-top: 2px;
     }
 
-    /* ===== スピナーの回転アニメーション定義 ===== */
-    @keyframes spin {
-      to { transform: rotate(360deg); } /* 360度回転 */
+    /* 質問本文 */
+    .question-text {
+      font-size: 15px;
+      line-height: 1.75;
+      color: var(--text);
     }
 
-    /* ===== エラーメッセージ表示エリア ===== */
-    #error-area {
-      display: none;              /* 通常は非表示 */
-      background-color: #fff5f5;  /* 薄い赤背景 */
-      border: 1px solid #feb2b2;  /* 赤枠線 */
-      border-radius: 8px;         /* 角丸 */
-      padding: 16px;              /* 内側余白 */
-      color: #c53030;             /* 赤文字 */
-      margin-top: 16px;           /* 上余白 */
-      font-size: 14px;            /* フォントサイズ */
-      line-height: 1.6;           /* 行間 */
+    /* ===== 回答セクションの小ラベル ===== */
+    .answer-section-label {
+      font-size: 12px;
+      font-weight: bold;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text-sub);
+      margin: 24px 0 10px;
     }
 
-    /* ===== 出力エリアのヘッダー（タイトルとコピーボタンを横並び）===== */
+    /* ===== セクション間のグラデーション区切りライン ===== */
+    .gradient-divider {
+      height: 1px;
+      background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(0,212,255,0.22) 30%,
+        rgba(0,102,255,0.22) 70%,
+        transparent
+      );
+      margin: 0 0 28px;
+    }
+
+    /* ===== 出力エリアのヘッダー ===== */
     #output-header {
-      display: flex;           /* 横並び */
-      justify-content: space-between; /* 左右に振り分ける */
-      align-items: center;     /* 縦中央揃え */
-      margin-bottom: 16px;     /* 下余白 */
-      padding-bottom: 8px;     /* 下内余白 */
-      border-bottom: 2px solid #bee3f8; /* 薄いブルー下線 */
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
     }
 
     /* ===== コピーボタン ===== */
     #copy-btn {
-      background-color: #48bb78; /* グリーン */
-      color: white;              /* 白文字 */
-      padding: 8px 20px;         /* 内側余白 */
-      border: none;              /* 枠線なし */
-      border-radius: 6px;        /* 角丸 */
-      font-size: 14px;           /* フォントサイズ */
-      font-weight: bold;         /* 太字 */
-      cursor: pointer;           /* ポインターカーソル */
-      transition: background 0.2s; /* ホバーアニメーション */
-    }
-
-    /* ===== コピーボタン：ホバー時 ===== */
-    #copy-btn:hover {
-      background-color: #38a169; /* 少し暗いグリーン */
-    }
-
-    /* ===== コピー成功時のスタイル ===== */
-    #copy-btn.copied {
-      background-color: #2b6cb0; /* ブルーに変える */
-    }
-
-    /* ===== Markdownレンダリング結果の表示エリア ===== */
-    #output-content {
-      line-height: 1.8;   /* 読みやすい行間 */
-      font-size: 15px;    /* フォントサイズ */
-      color: #2d3748;     /* 文字色 */
-    }
-
-    /* ===== 見出し1（# ）→ <h2> のスタイル：セクション大見出し ===== */
-    #output-content h2 {
-      font-size: 18px;             /* フォントサイズ */
-      font-weight: bold;           /* 太字 */
-      color: #2b6cb0;              /* ブルー */
-      margin: 24px 0 12px;         /* 上下余白 */
-      padding-bottom: 6px;         /* 下内余白 */
-      border-bottom: 2px solid #bee3f8; /* 薄いブルー下線 */
-    }
-
-    /* ===== 見出し2（## ）→ <h3> のスタイル：サブセクション見出し ===== */
-    #output-content h3 {
-      font-size: 16px;     /* フォントサイズ */
-      font-weight: bold;   /* 太字 */
-      color: #2c5282;      /* 少し暗いブルー */
-      margin: 16px 0 8px;  /* 上下余白 */
-    }
-
-    /* ===== 見出し3（### ）→ <h4> のスタイル：小見出し ===== */
-    #output-content h4 {
-      font-size: 14px;     /* フォントサイズ */
-      font-weight: bold;   /* 太字 */
-      color: #4a5568;      /* グレー寄りのブルー */
-      margin: 12px 0 6px;  /* 上下余白 */
-    }
-
-    /* ===== 箇条書きリスト（- ）のスタイル ===== */
-    #output-content ul {
-      padding-left: 24px;  /* 左インデント */
-      margin: 8px 0;       /* 上下余白 */
-    }
-
-    /* ===== 番号付きリスト（1. ）のスタイル ===== */
-    #output-content ol {
-      padding-left: 24px;  /* 左インデント */
-      margin: 8px 0;       /* 上下余白 */
-    }
-
-    /* ===== リスト各項目のスタイル（ul・ol 共通）===== */
-    #output-content li {
-      margin-bottom: 6px;  /* 項目間の余白 */
-      line-height: 1.7;    /* 行間 */
-    }
-
-    /* ===== 太字（**テキスト**）のスタイル ===== */
-    #output-content strong {
-      color: #2d3748;      /* 文字色 */
-      font-weight: bold;   /* 太字 */
-    }
-
-    /* ===== 区切り線（---）のスタイル ===== */
-    #output-content hr {
-      border: none;                       /* デフォルト枠なし */
-      border-top: 1px solid #e2e8f0;      /* 薄いグレーの横線 */
-      margin: 20px 0;                     /* 上下余白 */
-    }
-
-    /* ===== 段落のスタイル ===== */
-    #output-content p {
-      margin: 8px 0;  /* 上下余白 */
-    }
-
-    /* ===== 編集ボタン（グレー）===== */
-    #edit-btn {
-      background-color: #718096; /* グレー */
-      color: white;
-      padding: 8px 16px;
-      border: none;
-      border-radius: 6px;
-      font-size: 14px;
-      font-weight: bold;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-
-    /* ===== 編集ボタン：ホバー時 ===== */
-    #edit-btn:hover {
-      background-color: #4a5568;
-    }
-
-    /* ===== 編集完了ボタン（グリーン）===== */
-    #edit-done-btn {
-      background-color: #48bb78; /* グリーン */
-      color: white;
-      padding: 8px 16px;
-      border: none;
-      border-radius: 6px;
-      font-size: 14px;
-      font-weight: bold;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-
-    /* ===== 編集完了ボタン：ホバー時 ===== */
-    #edit-done-btn:hover {
-      background-color: #38a169;
-    }
-
-    /* ===== 編集中のコンテンツエリア：点線枠で編集可能を示す ===== */
-    #output-content[contenteditable="true"] {
-      border: 2px dashed #2b6cb0; /* 青い点線枠 */
+      background: rgba(0,212,255,0.08);
+      color: var(--cyan);
+      border: 1px solid rgba(0,212,255,0.22);
+      padding: 8px 18px;
       border-radius: 8px;
-      padding: 12px;
-      outline: none;   /* デフォルトのフォーカス枠を消す */
-      cursor: text;    /* テキストカーソルを表示する */
+      font-size: 13px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    #copy-btn:hover  { background: rgba(0,212,255,0.16); }
+    #copy-btn.copied { background: rgba(0,212,255,0.25); color: #7fffd4; }
+
+    /* ===== 編集ボタン ===== */
+    #edit-btn {
+      background: rgba(148,163,184,0.07);
+      color: var(--text-sub);
+      border: 1px solid rgba(148,163,184,0.16);
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    #edit-btn:hover { background: rgba(148,163,184,0.15); color: var(--text); }
+
+    /* ===== 編集完了ボタン ===== */
+    #edit-done-btn {
+      background: rgba(0,212,255,0.08);
+      color: var(--cyan);
+      border: 1px solid rgba(0,212,255,0.22);
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    #edit-done-btn:hover { background: rgba(0,212,255,0.16); }
+
+    /* ===== 出力コンテンツのMarkdownスタイル ===== */
+    #output-content {
+      line-height: 1.9;
+      font-size: 15px;
+      color: var(--text);
+    }
+
+    /* 見出し1（# ）→ <h2>：グラデーションテキスト ===== */
+    #output-content h2 {
+      font-size: 18px;
+      font-weight: bold;
+      background: var(--grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin: 28px 0 14px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* 見出し2（## ）→ <h3> */
+    #output-content h3 {
+      font-size: 15px;
+      font-weight: bold;
+      color: rgba(0,212,255,0.85);
+      margin: 18px 0 8px;
+    }
+
+    /* 見出し3（### ）→ <h4> */
+    #output-content h4 {
+      font-size: 14px;
+      font-weight: bold;
+      color: var(--text-sub);
+      margin: 12px 0 6px;
+    }
+
+    #output-content ul, #output-content ol {
+      padding-left: 24px;
+      margin: 8px 0;
+    }
+
+    #output-content li       { margin-bottom: 6px; line-height: 1.75; }
+    #output-content strong   { color: #a0cfff; font-weight: bold; }
+
+    #output-content hr {
+      border: none;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border), transparent);
+      margin: 20px 0;
+    }
+
+    #output-content p { margin: 8px 0; }
+
+    /* 編集中のスタイル */
+    #output-content[contenteditable="true"] {
+      border: 1px dashed rgba(0,212,255,0.35);
+      border-radius: 10px;
+      padding: 16px;
+      outline: none;
+      cursor: text;
+    }
+
+    /* ===== スクロールフェードイン（IntersectionObserver）===== */
+    .scroll-fade {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.65s ease, transform 0.65s ease;
+    }
+
+    .scroll-fade.visible {
+      opacity: 1;
+      transform: translateY(0);
     }
 
     /* ===== フッター ===== */
     footer {
-      text-align: center;   /* 中央揃え */
-      padding: 24px;        /* 内側余白 */
-      color: #a0aec0;       /* 薄いグレー文字 */
-      font-size: 13px;      /* 小さいフォント */
+      text-align: center;
+      padding: 36px;
+      color: rgba(148,163,184,0.3);
+      font-size: 11px;
+      letter-spacing: 1px;
     }
   </style>
 </head>
@@ -431,11 +579,9 @@
 
   <!-- ===== ヘッダー：タイトルとAPIキー入力 ===== -->
   <header>
-    <!-- アプリのタイトル -->
     <h1>🏗 AI要件定義システム</h1>
-    <!-- APIキー入力ラベル -->
     <span id="api-key-label">Claude APIキー：</span>
-    <!-- APIキー入力欄（セキュリティのためtype="password"にして見えないようにする） -->
+    <!-- APIキー入力欄（type="password"で非表示、autocomplete="off"でパスワード保存ダイアログを抑制）-->
     <input
       type="password"
       id="api-key-input"
@@ -447,94 +593,90 @@
 
   <!-- ===== メインコンテンツ ===== -->
   <main>
-    <!-- 入力エリアカード -->
-    <div class="card">
+
+    <!-- ===== STEP 1：初回要望入力カード ===== -->
+    <div class="card" id="input-card">
       <div class="section-title">📝 現場の状況・要望を入力</div>
-      <!-- テキスト入力エリア：直接キーボードで入力できる -->
-      <textarea
-        id="input-textarea"
-        placeholder="例：「現場の進捗管理をもっと楽にしたい。今は紙の日報を使っているけど、スマホで写真を撮って報告できるようにしたい。所長も現場に来なくても状況が分かるようにしたい。」"
-      ></textarea>
-      <!-- 文字数カウンター（入力量の目安） -->
+
+      <!-- テキスト入力エリア（プレースホルダーはJSでタイピングアニメーション）-->
+      <textarea id="input-textarea" placeholder=""></textarea>
       <div id="char-count">0 文字</div>
 
-      <!-- ===== 音声入力ボタン（Task 3 で機能を追加）===== -->
-      <div id="voice-area" style="margin-top:12px; display:flex; gap:12px; align-items:center;">
-        <!-- 音声入力ボタン：Web Speech API非対応ブラウザでは非表示にする -->
-        <button class="btn" id="voice-btn" style="background:#38a169;color:white;" title="ボタンを押している間、音声を録音します">
+      <!-- 音声入力エリア（Web Speech API非対応ブラウザでは非表示）-->
+      <div id="voice-area" style="margin-top:14px; display:flex; gap:12px; align-items:center;">
+        <button class="btn" id="voice-btn" title="ボタンを押している間、音声を録音します">
           🎤 音声入力（押している間）
         </button>
-        <!-- 録音中のステータス表示 -->
-        <span id="voice-status" style="font-size:14px; color:#718096;"></span>
+        <span id="voice-status"></span>
       </div>
 
-      <!-- ヒアリング開始ボタン：クリックするとAIが確認質問を生成する（STEP 1）-->
+      <!-- ヒアリング開始ボタン（クリックするとAIが確認質問を生成する）-->
       <button class="btn" id="hearing-btn">
         💬 ヒアリングを開始する
       </button>
 
-      <!-- ローディング表示（STEP 1 のAPI呼び出し中に表示される） -->
+      <!-- STEP 1 のローディング（ドットウェーブ）-->
       <div id="loading-area">
-        <!-- くるくるスピナー -->
-        <div class="spinner"></div>
-        <div id="loading-message">Claude AIが確認事項を考えています...<br>しばらくお待ちください（5〜15秒程度）</div>
+        <div class="dot-wave">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+        <div id="loading-message">Claude AIが確認事項を考えています...</div>
       </div>
 
-      <!-- エラーメッセージ表示エリア -->
+      <!-- STEP 1 のエラー表示 -->
       <div id="error-area"></div>
     </div>
 
-    <!-- ===== 深掘りヒアリングカード（STEP 1 完了後に表示）===== -->
-    <div class="card" id="question-card" style="display:none;">
-      <!-- カードのタイトル -->
+    <!-- ===== STEP 2：深掘りヒアリングカード（STEP 1 完了後に表示）===== -->
+    <div class="card scroll-fade" id="question-card" style="display:none;">
       <div class="section-title">💬 AIからの確認事項</div>
-      <!-- AIが生成した質問をそのまま表示するエリア -->
+
+      <!-- AIが生成した質問を個別カードとして動的生成するコンテナ -->
       <div id="question-content"></div>
 
       <!-- 回答入力セクション -->
       <div class="answer-section-label">📝 上記の質問にご回答ください（番号順に）</div>
-      <!-- 質問への回答をまとめて入力するテキストエリア -->
       <textarea
         id="answer-textarea"
         placeholder="例：&#10;1. 現在は紙の日報で管理しています。毎日10〜20枚ほど処理しています。&#10;2. 現場作業員15名と所長2名が使います。本社管理者3名が確認します。&#10;3. ..."
       ></textarea>
-      <!-- 回答の文字数カウンター -->
       <div id="answer-char-count">0 文字</div>
 
-      <!-- 要件定義書を生成するボタン（STEP 2）-->
+      <!-- 要件定義書生成ボタン（回答入力後にスライドアップで出現）-->
       <button class="btn" id="generate-btn">
         ✨ 要件定義書を生成する
       </button>
 
-      <!-- STEP 2 のローディング表示（要件定義書生成中）-->
+      <!-- STEP 2 のローディング（ドットウェーブ）-->
       <div id="question-loading-area">
-        <div class="spinner"></div>
-        <div>Claude AIが要件定義書を生成しています...<br>しばらくお待ちください（10〜30秒程度）</div>
+        <div class="dot-wave">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+        <div>Claude AIが要件定義書を生成しています...</div>
       </div>
 
       <!-- STEP 2 のエラー表示 -->
       <div id="question-error-area"></div>
     </div>
 
-    <!-- ===== 生成結果表示エリア ===== -->
-    <div class="card" id="output-card" style="display:none;">
-      <!-- 出力エリアのヘッダー（タイトルとコピーボタン） -->
+    <!-- ===== STEP 3：生成結果表示エリア ===== -->
+    <div class="card scroll-fade" id="output-card" style="display:none;">
+      <!-- 出力ヘッダー（タイトル＋編集・コピーボタン）-->
       <div id="output-header">
-        <!-- 出力エリアのタイトル -->
         <div class="section-title" style="margin-bottom:0; border-bottom:none; padding-bottom:0;">
           📄 生成された要件定義書
         </div>
-        <!-- ボタングループ（編集・編集完了・コピー）-->
+        <!-- ボタングループ -->
         <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-          <!-- 編集ボタン：クリックでコンテンツを直接編集できるようにする（生成後に表示）-->
+          <!-- 編集ボタン：生成後に表示 -->
           <button id="edit-btn" style="display:none;" title="要件定義書を直接編集します">
             ✏️ 編集する
           </button>
-          <!-- 編集完了ボタン：編集モードを終了して閲覧モードに戻る（編集中に表示）-->
+          <!-- 編集完了ボタン：編集中に表示 -->
           <button id="edit-done-btn" style="display:none;" title="編集を完了して閲覧モードに戻ります">
             ✅ 編集を完了する
           </button>
-          <!-- Markdownをクリップボードにコピーするボタン -->
+          <!-- Markdownコピーボタン -->
           <button id="copy-btn" title="Markdown形式でクリップボードにコピーします">
             📋 Markdownをコピー
           </button>
@@ -543,6 +685,7 @@
       <!-- Markdownをレンダリングして表示するエリア -->
       <div id="output-content"></div>
     </div>
+
   </main>
 
   <!-- フッター -->
@@ -551,74 +694,178 @@
   </footer>
 
   <script>
-    // ===== JavaScriptの初期化処理 =====
-    // DOMが読み込まれた後に実行する
+    // ===== DOMが読み込まれた後に初期化処理を実行する =====
     document.addEventListener('DOMContentLoaded', function() {
-      // APIキー入力欄の要素を取得する
-      var apiKeyInput = document.getElementById('api-key-input');
 
-      // ページ読み込み時にlocalStorageからAPIキーを復元する（入力の手間を省く）
+      // ===== 要素参照の取得 =====
+      var apiKeyInput     = document.getElementById('api-key-input');
+      var textarea        = document.getElementById('input-textarea');
+      var charCount       = document.getElementById('char-count');
+      var hearingBtn      = document.getElementById('hearing-btn');
+      var answerTextarea  = document.getElementById('answer-textarea');
+      var answerCharCount = document.getElementById('answer-char-count');
+      var generateBtn     = document.getElementById('generate-btn');
+
+      // ===== APIキーの localStorage 復元・保存 =====
       var savedKey = localStorage.getItem('claude_api_key');
-      if (savedKey) {
-        apiKeyInput.value = savedKey; // 保存済みキーを復元
-      }
-
-      // APIキーが入力されるたびにlocalStorageに保存する（blurを待たずに即保存）
+      if (savedKey) apiKeyInput.value = savedKey;
       apiKeyInput.addEventListener('input', function() {
         localStorage.setItem('claude_api_key', apiKeyInput.value);
       });
 
-      // テキスト入力エリアの要素を取得する
-      var textarea = document.getElementById('input-textarea');
-      // 文字数カウンターの要素を取得する
-      var charCount = document.getElementById('char-count');
-      // ヒアリングボタン（STEP 1）の要素を取得する
-      var hearingBtn = document.getElementById('hearing-btn');
-      // ヒアリングボタンの元テキストを保存しておく（finally で確実に復元するため）
-      var originalHearingBtnText = hearingBtn.textContent.trim();
-
-      // テキストが入力されるたびに文字数を更新する
-      textarea.addEventListener('input', function() {
-        charCount.textContent = textarea.value.length + ' 文字';
-      });
-
-      // 回答テキストエリアと文字数カウンターの要素を取得する
-      var answerTextarea = document.getElementById('answer-textarea');
-      var answerCharCount  = document.getElementById('answer-char-count');
-
-      // 回答テキストが入力されるたびに文字数を更新する
-      answerTextarea.addEventListener('input', function() {
-        answerCharCount.textContent = answerTextarea.value.length + ' 文字';
-      });
-
-      // プロキシサーバーのエンドポイントURL（server.js が localhost:3001 で動いている前提）
+      // ===== プロキシサーバーのエンドポイント =====
       var API_URL = 'http://localhost:3001/api/claude';
 
-      // ===== Claude API 共通呼び出し関数 =====
-      // apiKey: APIキー文字列
-      // systemPrompt: Claudeへの指示
-      // userMessage: ユーザーメッセージ文字列
-      // 戻り値: Claudeの返答テキスト（Promise）
+      // ===== STEP 1/2 の取得情報を保持する変数 =====
+      var savedInitialRequest     = '';
+      var savedQuestionsText      = '';
+      var originalHearingBtnText  = hearingBtn.textContent.trim();
+      var originalGenerateBtnText = generateBtn.textContent.trim();
+
+      // ============================================================
+      // ① タイピングアニメーション（プレースホルダーを順番に表示）
+      // ============================================================
+      var placeholderTexts = [
+        '現場の進捗管理をもっと楽にしたい。今は紙の日報を使っているが、スマホで写真を撮って報告できるようにしたい。',
+        '図面の最新版管理が大変。現場と事務所で別々のバージョンを持ってしまい、認識のズレが起きている。',
+        '安全パトロールの記録をデジタル化したい。今は手書きで記録しているが、集計に時間がかかっている。',
+        '工事の工程表をリアルタイムで共有したい。今はExcelで管理していて、更新のたびにメールで送っている。',
+      ];
+      var phIdx     = 0;      // 現在表示中のサンプルインデックス
+      var phChar    = 0;      // 現在何文字目まで表示しているか
+      var phTimer   = null;   // setTimeout の ID（クリアに使う）
+      var phErasing = false;  // 消去中かどうか
+
+      // 1文字ずつ表示するタイピング処理
+      function typePlaceholder() {
+        var target = placeholderTexts[phIdx];
+        if (!phErasing) {
+          // タイピング：1文字ずつ追加する
+          phChar++;
+          textarea.placeholder = target.slice(0, phChar) + '|'; // カーソル記号を末尾に付ける
+          if (phChar >= target.length) {
+            // 全文表示したら2.5秒待って消去フェーズへ
+            phTimer = setTimeout(function() { phErasing = true; typePlaceholder(); }, 2500);
+          } else {
+            phTimer = setTimeout(typePlaceholder, 55); // 1文字あたり55ms
+          }
+        } else {
+          // 消去：1文字ずつ削除する
+          phChar--;
+          textarea.placeholder = target.slice(0, phChar) + (phChar > 0 ? '|' : '');
+          if (phChar <= 0) {
+            // 全消去したら次のサンプルへ
+            phErasing = false;
+            phIdx     = (phIdx + 1) % placeholderTexts.length;
+            phTimer   = setTimeout(typePlaceholder, 400); // 次の文の前に少し間を置く
+          } else {
+            phTimer = setTimeout(typePlaceholder, 30); // 消去はタイピングより少し速め
+          }
+        }
+      }
+
+      // ユーザーがフォーカスしたらアニメーションを止めてプレースホルダーをクリアする
+      textarea.addEventListener('focus', function() {
+        clearTimeout(phTimer);
+        textarea.placeholder = '';
+      });
+      // フォーカスが外れて入力がなければアニメーションを再開する
+      textarea.addEventListener('blur', function() {
+        if (!textarea.value) {
+          phChar = 0; phErasing = false;
+          phTimer = setTimeout(typePlaceholder, 600);
+        }
+      });
+
+      // ページロード後に少し遅らせてアニメーション開始する
+      phTimer = setTimeout(typePlaceholder, 1000);
+
+      // ============================================================
+      // ② 文字数カウンター（バウンスアニメーション付き）
+      // ============================================================
+      // 文字数表示＋バウンスアニメーションを実行するヘルパー関数
+      function updateCharCount(el, count) {
+        el.textContent = count + ' 文字';
+        el.classList.add('count-bump');                              // バウンスクラスを付与する
+        setTimeout(function() { el.classList.remove('count-bump'); }, 200); // 200ms後に解除する
+      }
+
+      textarea.addEventListener('input', function() {
+        updateCharCount(charCount, textarea.value.length);
+      });
+
+      answerTextarea.addEventListener('input', function() {
+        updateCharCount(answerCharCount, answerTextarea.value.length);
+        // 回答が1文字以上入力されたら生成ボタンをスライドアップで表示する
+        if (answerTextarea.value.trim().length > 0) {
+          generateBtn.classList.add('slide-up');
+        }
+      });
+
+      // ============================================================
+      // ③ リップルエフェクト（ボタン押下時の波紋）
+      // ============================================================
+      function addRipple(btn, clientX, clientY) {
+        var rect   = btn.getBoundingClientRect();
+        var ripple = document.createElement('span');
+        ripple.classList.add('ripple');
+        ripple.style.left = (clientX - rect.left) + 'px';
+        ripple.style.top  = (clientY - rect.top)  + 'px';
+        btn.appendChild(ripple);
+        // アニメーション終了後（560ms）に要素を削除する
+        setTimeout(function() { ripple.remove(); }, 600);
+      }
+
+      // リップルを適用するボタンにイベントを登録する
+      [hearingBtn, generateBtn].forEach(function(btn) {
+        btn.addEventListener('mousedown', function(e) {
+          addRipple(btn, e.clientX, e.clientY);
+        });
+        btn.addEventListener('touchstart', function(e) {
+          if (e.touches[0]) addRipple(btn, e.touches[0].clientX, e.touches[0].clientY);
+        }, { passive: true });
+      });
+
+      // ============================================================
+      // ④ IntersectionObserver（スクロール時フェードイン）
+      // ============================================================
+      var scrollObserver = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');   // フェードインを開始する
+            scrollObserver.unobserve(entry.target);  // 一度表示したら監視を解除する
+          }
+        });
+      }, { threshold: 0.1 });
+
+      // .scroll-fade クラスを持つ要素を監視対象に登録する
+      document.querySelectorAll('.scroll-fade').forEach(function(el) {
+        scrollObserver.observe(el);
+      });
+
+      // ============================================================
+      // ⑤ Claude API 共通呼び出し関数
+      // ============================================================
       async function callClaudeApi(apiKey, systemPrompt, userMessage) {
         var requestBody = {
-          model: 'claude-sonnet-4-20250514', // 使用するモデル
-          max_tokens: 4000,                  // 最大生成トークン数
-          system: systemPrompt,              // システムプロンプト
-          messages: [{ role: 'user', content: userMessage }]
+          model:      'claude-sonnet-4-20250514', // 使用するモデル
+          max_tokens: 4000,                        // 最大生成トークン数
+          system:     systemPrompt,                // システムプロンプト
+          messages:   [{ role: 'user', content: userMessage }]
         };
 
         var response = await fetch(API_URL, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json', // JSONを送ることを宣言
-            'x-api-key': apiKey                 // APIキーをプロキシへ転送
+            'x-api-key':    apiKey              // APIキーをプロキシへ転送
           },
           body: JSON.stringify(requestBody)
         });
 
         // HTTPエラー（4xx/5xx）を日本語メッセージに変換する
         if (!response.ok) {
-          var errorMsg = 'APIエラーが発生しました（HTTPステータス：' + response.status + '）\n';
+          var errorMsg = 'APIエラー（HTTP ' + response.status + '）\n';
           if (response.status === 401) {
             errorMsg += 'APIキーが無効です。正しいAPIキーを入力してください。';
           } else if (response.status === 429) {
@@ -628,7 +875,8 @@
           } else {
             try {
               var errorData = await response.json();
-              errorMsg += (errorData.error && errorData.error.message) ? errorData.error.message : '不明なエラー';
+              errorMsg += (errorData.error && errorData.error.message)
+                ? errorData.error.message : '不明なエラー';
             } catch (_) {
               errorMsg += 'サーバーからのレスポンスを解析できませんでした。';
             }
@@ -637,7 +885,6 @@
         }
 
         var data = await response.json();
-
         // レスポンス構造を安全に確認する
         if (!data.content || !data.content[0] || !data.content[0].text) {
           throw new Error('APIから有効なレスポンスが返りませんでした。もう一度お試しください。');
@@ -645,26 +892,23 @@
         return data.content[0].text; // 返答テキストを返す
       }
 
-      // ===== エラーメッセージを安全にDOM表示する共通関数（XSS対策）=====
-      // errorArea: 表示先のDOM要素
-      // message: 表示するエラー文字列（改行\nを含んでよい）
+      // ============================================================
+      // ⑥ エラーメッセージ表示（XSSセーフなDOM操作）
+      // ============================================================
       function showError(errorArea, message) {
         errorArea.style.display = 'block';
-        errorArea.textContent = ''; // 前回のエラーをクリアする
-        errorArea.appendChild(document.createTextNode('⚠️ ')); // プレフィックス
+        errorArea.textContent   = '';
+        errorArea.appendChild(document.createTextNode('⚠️ ')); // プレフィックスをテキストノードで追加
         message.split('\n').forEach(function(line, i) {
           if (i > 0) errorArea.appendChild(document.createElement('br')); // 改行を<br>で挿入
           errorArea.appendChild(document.createTextNode(line)); // 各行をテキストノードで追加（HTML注入不可）
         });
       }
 
-      // ===== 初回要望から保存する変数 =====
-      // STEP 1 で取得した情報を STEP 2 でも使うためグローバル的に保持する
-      var savedInitialRequest = ''; // ユーザーの最初の要望
-      var savedQuestionsText  = ''; // AIが生成した確認質問
-
-      // ===== STEP 1：ヒアリングボタンのクリック処理 =====
-      // 最初の要望を送ってAIに確認質問を生成させる
+      // ============================================================
+      // ⑦ STEP 1：ヒアリングボタンのクリック処理
+      //    最初の要望を送りAIに確認質問を生成させる
+      // ============================================================
       hearingBtn.addEventListener('click', async function() {
 
         // 音声入力中の場合は先に停止する（同時動作を防ぐ）
@@ -672,7 +916,7 @@
           recognition.stop();
         }
 
-        // APIキーが入力されているか確認する
+        // ===== 入力チェック =====
         var apiKey = apiKeyInput.value.trim();
         if (!apiKey) {
           alert('APIキーを入力してください。\nヘッダーの「Claude APIキー」欄に入力してください。');
@@ -680,24 +924,23 @@
           return;
         }
 
-        // 最初の要望が入力されているか確認する
         var inputText = textarea.value.trim();
         if (!inputText) {
-          alert('まず現場の状況・要望を入力してください。\n音声入力またはテキスト入力で入力できます。');
+          alert('まず現場の状況・要望を入力してください。');
           textarea.focus();
           return;
         }
 
         // ===== UI を「ヒアリング中」状態にする =====
-        hearingBtn.disabled = true;
+        hearingBtn.disabled    = true;
         hearingBtn.textContent = '⏳ 質問を考えています...';
         document.getElementById('loading-area').style.display = 'block';
         var errorArea = document.getElementById('error-area');
         errorArea.style.display = 'none';
-        errorArea.textContent = '';
+        errorArea.textContent   = '';
         // 以前の質問カード・出力カードを非表示にする（やり直し対応）
         document.getElementById('question-card').style.display = 'none';
-        document.getElementById('output-card').style.display = 'none';
+        document.getElementById('output-card').style.display   = 'none';
 
         try {
           // ===== AIに確認質問を生成させる =====
@@ -719,52 +962,97 @@
 - 現場の方が答えやすい平易な言葉を使う
 - 日本語で出力する`;
 
-          var hearingUserMessage = '以下の要望に対して、確認質問を生成してください。\n\n' + inputText;
+          var questionsText = await callClaudeApi(
+            apiKey,
+            hearingSystemPrompt,
+            '以下の要望に対して、確認質問を生成してください。\n\n' + inputText
+          );
 
-          var questionsText = await callClaudeApi(apiKey, hearingSystemPrompt, hearingUserMessage);
-
-          // 取得した質問と最初の要望を変数に保存する（STEP 2 で使う）
+          // 取得した情報を STEP 2 で使うために保存する
           savedInitialRequest = inputText;
           savedQuestionsText  = questionsText;
 
-          // ===== 質問をカードに表示する =====
-          document.getElementById('question-content').textContent = questionsText;
-          // 回答テキストエリアをクリアする（やり直し対応）
-          answerTextarea.value = '';
+          // ===== 質問をパースして個別カードとして動的生成する =====
+          var questionContainer = document.getElementById('question-content');
+          questionContainer.innerHTML = ''; // 前回の質問をクリアする
+
+          // 「1. テキスト」形式の行を抽出する
+          var questionLines = questionsText.split('\n')
+            .map(function(l) { return l.trim(); })
+            .filter(function(l) { return /^\d+\. /.test(l); });
+
+          // 抽出できなかった場合は全行をそのまま使う（フォールバック）
+          if (questionLines.length === 0) {
+            questionLines = questionsText.split('\n').filter(function(l) { return l.trim(); });
+          }
+
+          // 各質問をカード要素として作成する（この時点ではまだ opacity:0）
+          var questionItems = questionLines.map(function(qLine, idx) {
+            var text = qLine.replace(/^\d+\. /, ''); // 番号と「. 」を除いたテキスト
+
+            var item   = document.createElement('div');
+            item.className = 'question-item';
+
+            var badge  = document.createElement('div');
+            badge.className   = 'question-number';
+            badge.textContent = idx + 1;
+
+            var textEl = document.createElement('div');
+            textEl.className   = 'question-text';
+            textEl.textContent = text;
+
+            item.appendChild(badge);
+            item.appendChild(textEl);
+            questionContainer.appendChild(item);
+            return item;
+          });
+
+          // ===== 回答エリアとボタンをリセットする（やり直し対応）=====
+          answerTextarea.value        = '';
           answerCharCount.textContent = '0 文字';
-          // エラーと前回の結果をリセットする
+          generateBtn.classList.remove('slide-up'); // 生成ボタンを再び非表示にする
           var qErrorArea = document.getElementById('question-error-area');
           qErrorArea.style.display = 'none';
-          qErrorArea.textContent = '';
+          qErrorArea.textContent   = '';
 
-          // 質問カードを表示してスクロールする
+          // 質問カードを表示する
           document.getElementById('question-card').style.display = 'block';
+
+          // ===== staggered アニメーション：各質問を80msずつ遅らせてスライドイン =====
+          questionItems.forEach(function(item, idx) {
+            setTimeout(function() {
+              item.classList.add('slide-in'); // フェードイン＋スライドダウン
+            }, 80 * idx);
+          });
+
+          // 質問カードへスムーズスクロールする
           document.getElementById('question-card').scrollIntoView({ behavior: 'smooth' });
 
+          // 質問カードを IntersectionObserver の監視対象に追加する
+          scrollObserver.observe(document.getElementById('question-card'));
+
         } catch (error) {
-          // エラーを日本語で表示する
+          // エラーを日本語で入力カードのエラーエリアに表示する
           var displayMessage = error.message;
           if (error instanceof TypeError) {
-            displayMessage = 'ネットワークエラーが発生しました。server.js が起動しているか確認してください。\n（詳細：' + error.message + '）';
+            displayMessage = 'ネットワークエラー。server.js が起動しているか確認してください。\n（詳細：' + error.message + '）';
           }
           showError(errorArea, displayMessage);
-
         } finally {
           // ローディングを終了してボタンを元に戻す
           document.getElementById('loading-area').style.display = 'none';
-          hearingBtn.disabled = false;
+          hearingBtn.disabled    = false;
           hearingBtn.textContent = originalHearingBtnText;
         }
       });
 
-      // ===== STEP 2：生成ボタンのクリック処理 =====
-      // 最初の要望＋質問＋回答を統合して要件定義書を生成する
-      var generateBtn = document.getElementById('generate-btn');
-      var originalGenerateBtnText = generateBtn.textContent.trim();
-
+      // ============================================================
+      // ⑧ STEP 2：生成ボタンのクリック処理
+      //    最初の要望＋質問＋回答を統合して要件定義書を生成する
+      // ============================================================
       generateBtn.addEventListener('click', async function() {
 
-        // APIキーが入力されているか確認する
+        // ===== 入力チェック =====
         var apiKey = apiKeyInput.value.trim();
         if (!apiKey) {
           alert('APIキーを入力してください。\nヘッダーの「Claude APIキー」欄に入力してください。');
@@ -772,31 +1060,30 @@
           return;
         }
 
-        // 回答が入力されているか確認する
         var answerText = answerTextarea.value.trim();
         if (!answerText) {
-          alert('AIからの質問に回答してください。\n上の質問欄を読んで、回答を入力してください。');
+          alert('AIからの質問に回答してください。');
           answerTextarea.focus();
           return;
         }
 
-        // STEP 1 が完了しているか確認する（念のための防御チェック）
+        // STEP 1 が完了しているか確認する（防御的チェック）
         if (!savedInitialRequest || !savedQuestionsText) {
           alert('先に「ヒアリングを開始する」をクリックして質問を取得してください。');
           return;
         }
 
         // ===== UI を「生成中」状態にする =====
-        generateBtn.disabled = true;
+        generateBtn.disabled    = true;
         generateBtn.textContent = '⏳ 生成中...';
         document.getElementById('question-loading-area').style.display = 'block';
         var qErrorArea = document.getElementById('question-error-area');
         qErrorArea.style.display = 'none';
-        qErrorArea.textContent = '';
+        qErrorArea.textContent   = '';
         document.getElementById('output-card').style.display = 'none';
 
         try {
-          // ===== 最初の要望＋質問＋回答を統合して要件定義書を生成する =====
+          // ===== 要件定義書生成のシステムプロンプト =====
           var requirementsSystemPrompt = `あなたはITシステムの要件定義の専門家です。
 現場担当者から最初の要望と、追加ヒアリングの回答を受け取りました。
 これらをすべて統合して、エンジニアが開発を始められる精密な要件定義書をMarkdown形式で作成してください。
@@ -856,16 +1143,16 @@
 - RPO・RTOはヒアリング情報から合理的な値を提案してください（情報不足の場合はTBDと記載）
 - 日本語で出力してください`;
 
-          // ユーザーメッセージは「最初の要望＋質問＋回答」をまとめて渡す
+          // ユーザーメッセージ：最初の要望＋質問＋回答をまとめて渡す
           var requirementsUserMessage =
-            '【最初の要望】\n' + savedInitialRequest +
-            '\n\n【AIの確認質問】\n' + savedQuestionsText +
-            '\n\n【担当者の回答】\n' + answerText +
+            '【最初の要望】\n'   + savedInitialRequest  +
+            '\n\n【AIの確認質問】\n' + savedQuestionsText   +
+            '\n\n【担当者の回答】\n' + answerText            +
             '\n\n以上をもとに要件定義書を作成してください。';
 
           var markdownText = await callClaudeApi(apiKey, requirementsSystemPrompt, requirementsUserMessage);
 
-          // 生成したMarkdownをグローバル変数に保存する（コピーボタン用）
+          // 生成したMarkdownをコピーボタン用にグローバル変数に保存する
           window.generatedMarkdown = markdownText;
 
           // 出力カードを表示する
@@ -873,390 +1160,265 @@
 
           // 編集状態をリセットする（再生成時に前回の編集モードが残らないように）
           var outputContentEl = document.getElementById('output-content');
-          outputContentEl.removeAttribute('contenteditable'); // 編集不可に戻す
-          document.getElementById('edit-btn').style.display = 'inline-block'; // 「編集する」を表示
-          document.getElementById('edit-done-btn').style.display = 'none';    // 「完了」は非表示
+          outputContentEl.removeAttribute('contenteditable');
+          document.getElementById('edit-btn').style.display      = 'inline-block';
+          document.getElementById('edit-done-btn').style.display = 'none';
 
-          // Markdownをレンダリングして出力エリアに表示する
+          // Markdownをレンダリングして表示する
           renderMarkdown(markdownText);
 
-          // 出力エリアまでスクロールする
+          // 出力カードを IntersectionObserver の監視対象に追加する
+          scrollObserver.observe(document.getElementById('output-card'));
+
+          // 出力エリアへスムーズスクロールする
           document.getElementById('output-card').scrollIntoView({ behavior: 'smooth' });
 
         } catch (error) {
-          // エラーを日本語で表示する（質問カード内のエラーエリアに出す）
+          // エラーを質問カード内のエラーエリアに表示する
           var displayMessage = error.message;
           if (error instanceof TypeError) {
-            displayMessage = 'ネットワークエラーが発生しました。server.js が起動しているか確認してください。\n（詳細：' + error.message + '）';
+            displayMessage = 'ネットワークエラー。server.js が起動しているか確認してください。\n（詳細：' + error.message + '）';
           }
           showError(qErrorArea, displayMessage);
-
         } finally {
           // ローディングを終了してボタンを元に戻す
           document.getElementById('question-loading-area').style.display = 'none';
-          generateBtn.disabled = false;
+          generateBtn.disabled    = false;
           generateBtn.textContent = originalGenerateBtnText;
         }
       });
 
-      // ===== 音声入力機能（Web Speech API）=====
-
-      // 音声入力ボタンの要素を取得する
-      var voiceBtn = document.getElementById('voice-btn');
-      // 録音中ステータス表示の要素を取得する
-      var voiceStatus = document.getElementById('voice-status');
-
-      // Web Speech APIがブラウザで使えるか確認する
-      // Chrome / Edge は対応、Firefox は非対応
+      // ============================================================
+      // ⑨ 音声入力機能（Web Speech API）
+      // ============================================================
+      var voiceBtn          = document.getElementById('voice-btn');
+      var voiceStatus       = document.getElementById('voice-status');
       var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
       if (!SpeechRecognition) {
-        // 非対応ブラウザの場合：音声ボタンを非表示にする
+        // Web Speech API 非対応ブラウザ（Firefox等）では音声ボタンを非表示にする
         document.getElementById('voice-area').style.display = 'none';
       } else {
-        // 多重起動防止フラグ（true のとき認識中なので start() を呼ばない）
-        var isRecording = false;
-
-        // 対応ブラウザの場合：音声認識オブジェクトを作成する
+        var isRecording = false; // 多重起動防止フラグ
         var recognition = new SpeechRecognition();
+        recognition.lang           = 'ja-JP';  // 日本語認識
+        recognition.continuous     = true;      // ボタンを押している間ずっと認識する
+        recognition.interimResults = true;      // 途中結果もリアルタイム表示する
 
-        // 日本語で認識するように設定する
-        recognition.lang = 'ja-JP';
-
-        // 連続して認識し続けるモードにする（ボタンを離すまで継続）
-        recognition.continuous = true;
-
-        // 途中結果も取得するように設定する（リアルタイム表示のため）
-        recognition.interimResults = true;
-
-        // 音声認識中にテキストが取得できたときの処理
         recognition.onresult = function(event) {
-          // 途中結果（まだ確定していない文字）を収集する
-          var interimText = '';
-          // 確定した文字を収集する
-          var finalText = '';
-
-          // 全ての認識結果をループして確定・途中を仕分ける
+          var interimText = '', finalText = '';
           for (var i = event.resultIndex; i < event.results.length; i++) {
             if (event.results[i].isFinal) {
-              // 確定した文字（確実に認識できた部分）
-              finalText += event.results[i][0].transcript;
+              finalText   += event.results[i][0].transcript; // 確定した文字
             } else {
-              // 途中結果（まだ認識中の部分）
-              interimText += event.results[i][0].transcript;
+              interimText += event.results[i][0].transcript; // 途中の文字
             }
           }
-
-          // 確定した文字をテキストエリアに追記する
           if (finalText) {
-            textarea.value += finalText;
-            // 文字数カウンターを更新する
-            charCount.textContent = textarea.value.length + ' 文字';
+            textarea.value += finalText; // 確定した文字をテキストエリアに追記する
+            updateCharCount(charCount, textarea.value.length);
           }
-
-          // 途中結果をステータス欄に表示する（リアルタイムフィードバック）
-          if (interimText) {
-            voiceStatus.textContent = '認識中：' + interimText;
-          }
+          if (interimText) voiceStatus.textContent = '認識中：' + interimText;
         };
 
-        // 音声認識でエラーが発生したときの処理
         recognition.onerror = function(event) {
-          // エラーの種類によってメッセージを出し分ける
-          if (event.error === 'no-speech') {
-            voiceStatus.textContent = '音声が検出されませんでした';
-          } else if (event.error === 'not-allowed') {
-            voiceStatus.textContent = 'マイクの使用が許可されていません';
-          } else {
-            voiceStatus.textContent = 'エラーが発生しました：' + event.error;
-          }
+          if      (event.error === 'no-speech')   voiceStatus.textContent = '音声が検出されませんでした';
+          else if (event.error === 'not-allowed') voiceStatus.textContent = 'マイクの使用が許可されていません';
+          else                                    voiceStatus.textContent = 'エラー：' + event.error;
         };
 
-        // 音声認識が終了したときの処理（ボタンのスタイルをリセットする）
         recognition.onend = function() {
-          // 多重起動フラグをリセットする
           isRecording = false;
-          // 録音中スタイルを削除する
           voiceBtn.classList.remove('recording');
-          // ボタンのテキストを元に戻す
           voiceBtn.textContent = '🎤 音声入力（押している間）';
-          // エラーメッセージが出ていない場合は「録音完了」にする
           if (!voiceStatus.textContent.startsWith('エラー') &&
               !voiceStatus.textContent.startsWith('マイク') &&
               !voiceStatus.textContent.startsWith('音声が')) {
-            voiceStatus.textContent = '録音完了'; // 録音完了を表示する
+            voiceStatus.textContent = '録音完了';
           }
         };
 
-        // ===== 音声入力ボタンの「押している間だけ録音」を実装する =====
-
-        // マウスボタンを押し下げたとき（録音開始）
+        // マウスを押している間だけ録音する
         voiceBtn.addEventListener('mousedown', function() {
-          if (isRecording) return;                          // 多重起動を防ぐ
-          isRecording = true;                               // 録音中フラグをONにする
-          voiceStatus.textContent = '録音中...';           // ステータスを「録音中」に変える
-          voiceBtn.classList.add('recording');              // 赤い点滅スタイルを追加する
-          voiceBtn.textContent = '🔴 録音中（離したら停止）'; // ボタンテキストを変える
-          recognition.start();                             // 音声認識を開始する
+          if (isRecording) return;
+          isRecording = true;
+          voiceStatus.textContent = '録音中...';
+          voiceBtn.classList.add('recording');
+          voiceBtn.textContent    = '🔴 録音中（離したら停止）';
+          recognition.start();
         });
+        voiceBtn.addEventListener('mouseup',    function() { recognition.stop(); });
+        voiceBtn.addEventListener('mouseleave', function() { recognition.stop(); });
 
-        // マウスボタンを離したとき（録音停止）
-        voiceBtn.addEventListener('mouseup', function() {
-          recognition.stop(); // 音声認識を停止する
-        });
-
-        // マウスがボタン外に出たとき（録音停止：押したまま外に出た場合の対処）
-        voiceBtn.addEventListener('mouseleave', function() {
-          recognition.stop(); // 音声認識を停止する
-        });
-
-        // タッチ操作：タッチ開始時（スマホ・タブレット対応）
+        // タッチ操作（スマホ・タブレット対応）
         voiceBtn.addEventListener('touchstart', function(e) {
-          e.preventDefault();                               // デフォルトのタッチ動作を防ぐ
-          if (isRecording) return;                          // 多重起動を防ぐ
-          isRecording = true;                               // 録音中フラグをONにする
-          voiceStatus.textContent = '録音中...';           // ステータスを「録音中」に変える
-          voiceBtn.classList.add('recording');              // 赤い点滅スタイルを追加する
-          voiceBtn.textContent = '🔴 録音中（離したら停止）'; // ボタンテキストを変える
-          recognition.start();                             // 音声認識を開始する
+          e.preventDefault();
+          if (isRecording) return;
+          isRecording = true;
+          voiceStatus.textContent = '録音中...';
+          voiceBtn.classList.add('recording');
+          voiceBtn.textContent    = '🔴 録音中（離したら停止）';
+          recognition.start();
         });
-
-        // タッチ操作：タッチ終了時（スマホ・タブレット対応）
-        voiceBtn.addEventListener('touchend', function() {
-          recognition.stop(); // 音声認識を停止する
-        });
-
-        // タッチ操作：タッチキャンセル時（電話着信・システム割り込みなどによる中断）
-        voiceBtn.addEventListener('touchcancel', function() {
-          recognition.stop(); // 音声認識を停止する（touchendが発火しないため必須）
-        });
+        voiceBtn.addEventListener('touchend',    function() { recognition.stop(); });
+        voiceBtn.addEventListener('touchcancel', function() { recognition.stop(); }); // 電話着信等による中断対応
       }
 
-      // ===== コピーボタンの処理 =====
-
-      // コピーボタンの要素を取得する
+      // ============================================================
+      // ⑩ コピーボタン
+      // ============================================================
       var copyBtn = document.getElementById('copy-btn');
 
-      // copy-btn が存在しない場合は処理を行わない（防御的チェック）
       if (copyBtn) {
+        var copyResetTimer = null; // 連続クリック時のタイマー重複防止
 
-        // 連続クリック時にSetTimeoutが重複しないようタイマーIDを管理する
-        var copyResetTimer = null;
-
-        // コピーボタンをクリックしたときの処理
         copyBtn.addEventListener('click', function() {
-
-          // グローバル変数に保存されたMarkdownテキストを取得する
           var textToCopy = window.generatedMarkdown;
-
-          // コピーするテキストがない場合は何もしない
-          if (!textToCopy) {
-            return;
-          }
+          if (!textToCopy) return;
 
           // 前回のタイマーが残っていればキャンセルする（連続クリック対策）
-          if (copyResetTimer) {
-            clearTimeout(copyResetTimer); // 前のタイマーを止める
-            copyResetTimer = null;        // タイマーIDをリセットする
-          }
+          if (copyResetTimer) { clearTimeout(copyResetTimer); copyResetTimer = null; }
 
-          // クリップボードAPIを使ってコピーする
-          // navigator.clipboard は HTTPS または localhost でのみ動作する
           if (navigator.clipboard && window.isSecureContext) {
             // クリップボードAPIが使える場合（推奨）
-            navigator.clipboard.writeText(textToCopy).then(function() {
-              // コピー成功時のフィードバックを表示する
-              showCopySuccess();
-            }).catch(function() {
-              // クリップボードAPIが失敗した場合はフォールバックを使う
+            navigator.clipboard.writeText(textToCopy).then(showCopySuccess).catch(function() {
               fallbackCopy(textToCopy);
             });
           } else {
-            // HTTP環境など、クリップボードAPIが使えない場合のフォールバック
-            fallbackCopy(textToCopy);
+            fallbackCopy(textToCopy); // HTTP環境などでのフォールバック
           }
         });
 
-        // ===== コピー成功時のフィードバック表示（共通処理）=====
+        // コピー成功時のフィードバック表示
         function showCopySuccess() {
-          // ボタンのテキストを「コピーしました！」に変える
           copyBtn.textContent = '✅ コピーしました！';
-          // 青色スタイルを適用する
           copyBtn.classList.add('copied');
-          // 2秒後に元のテキストに戻す（タイマーIDを保存して重複を防ぐ）
           copyResetTimer = setTimeout(function() {
-            copyBtn.textContent = '📋 Markdownをコピー'; // 元のテキストに戻す
-            copyBtn.classList.remove('copied');           // 青色スタイルを解除する
-            copyResetTimer = null;                        // タイマーIDをクリアする
+            copyBtn.textContent = '📋 Markdownをコピー';
+            copyBtn.classList.remove('copied');
+            copyResetTimer = null;
           }, 2000);
         }
 
-        // ===== クリップボードAPIが使えない環境でのコピー処理（フォールバック）=====
+        // クリップボードAPIが使えない環境向けのフォールバック
         function fallbackCopy(text) {
-          // 一時的な非表示テキストエリアを作成する
-          var tempTextarea = document.createElement('textarea');
-          tempTextarea.value = text;             // コピーするテキストを設定する
-          // 画面外に配置して見えないようにする（display:noneではselect()が動かないためfixedを使う）
-          tempTextarea.style.position = 'fixed';
-          tempTextarea.style.left = '-9999px';   // 画面左端の外側に配置する
-          tempTextarea.style.top = '-9999px';    // 画面上端の外側に配置する
-          document.body.appendChild(tempTextarea); // DOMに追加する（select()に必要）
-          tempTextarea.focus();                  // テキストエリアにフォーカスを当てる
-          tempTextarea.select();                 // テキスト全体を選択する
-          // 古いコピーコマンドを実行する（IE・一部ブラウザ向けレガシー方式）
-          var success = document.execCommand('copy');
-          document.body.removeChild(tempTextarea); // 使い終わったテキストエリアを削除する
-
-          if (success) {
-            // コピー成功フィードバックを表示する
-            showCopySuccess();
-          } else {
-            // コピー失敗時はアラートで手動コピーを案内する
-            alert('コピーに失敗しました。\n手動でテキストを選択してCtrl+Cでコピーしてください。');
-          }
+          var tmp = document.createElement('textarea');
+          tmp.value          = text;
+          tmp.style.position = 'fixed';
+          tmp.style.left     = '-9999px';
+          tmp.style.top      = '-9999px';
+          document.body.appendChild(tmp);
+          tmp.focus();
+          tmp.select();
+          var ok = document.execCommand('copy');
+          document.body.removeChild(tmp);
+          if (ok) showCopySuccess();
+          else    alert('コピーに失敗しました。手動でCtrl+Cでコピーしてください。');
         }
+      }
 
-      } // if (copyBtn) end
-
-      // ===== 編集ボタン：クリックでコンテンツを直接編集できるようにする =====
-      var editBtn     = document.getElementById('edit-btn');
-      var editDoneBtn = document.getElementById('edit-done-btn');
+      // ============================================================
+      // ⑪ 編集ボタン
+      // ============================================================
+      var editBtn          = document.getElementById('edit-btn');
+      var editDoneBtn      = document.getElementById('edit-done-btn');
       var outputEditTarget = document.getElementById('output-content');
 
-      // 「編集する」ボタンのクリック処理
+      // 「編集する」ボタンのクリック：contenteditable を有効にして直接編集可能にする
       editBtn.addEventListener('click', function() {
-        // contenteditable を有効にして直接編集できるようにする
         outputEditTarget.contentEditable = 'true';
-        outputEditTarget.focus(); // 編集エリアにフォーカスを当てる
-        editBtn.style.display     = 'none';          // 「編集する」を隠す
-        editDoneBtn.style.display = 'inline-block';  // 「編集を完了する」を表示する
+        outputEditTarget.focus();
+        editBtn.style.display     = 'none';
+        editDoneBtn.style.display = 'inline-block';
       });
 
-      // 「編集を完了する」ボタンのクリック処理
+      // 「編集を完了する」ボタンのクリック：閲覧モードに戻す（編集内容はHTMLとして保持）
       editDoneBtn.addEventListener('click', function() {
-        // contenteditable を無効にして閲覧モードに戻す（編集内容はHTMLとして保持される）
         outputEditTarget.removeAttribute('contenteditable');
-        editDoneBtn.style.display = 'none';          // 「完了」を隠す
-        editBtn.style.display     = 'inline-block';  // 「編集する」を再表示する
+        editDoneBtn.style.display = 'none';
+        editBtn.style.display     = 'inline-block';
       });
 
-    });
+    }); // DOMContentLoaded end
 
-    // ===== Markdownテキストを HTML に変換して #output-content に表示する関数 =====
-    // 外部ライブラリを使わず自前実装（正規表現＋行ごとのパース）
-    //
+    // ============================================================
+    // Markdownレンダリング関数（DOMContentLoaded外に置いてグローバルに使用）
+    // ============================================================
     // Markdown → HTML 変換ルール（優先度順）：
-    //   ###  → <h4>  （小見出し）
-    //   ##   → <h3>  （サブセクション見出し）
-    //   #    → <h2>  （セクション大見出し。ページ<h1>はヘッダーが使うためh2から）
-    //   1.   → <ol><li>  （番号付きリスト）
-    //   -  * → <ul><li>  （箇条書きリスト）
-    //   ---  → <hr>       （区切り線）
-    //   空行  → リストを閉じる区切り
-    //   その他→ <p>       （通常テキスト）
-    //   **太字** → <strong>  （インライン書式）
+    //   # text  → <h2>（セクション大見出し）
+    //   ## text → <h3>（サブ見出し）
+    //   ### text→ <h4>（小見出し）
+    //   1. text → <ol><li>（番号付きリスト）
+    //   - text  → <ul><li>（箇条書きリスト）
+    //   ---     → <hr>（区切り線）
+    //   **text**→ <strong>（太字インライン）
+    //   空行    → リストを閉じる区切り
+    //   その他  → <p>（通常段落）
     function renderMarkdown(markdownText) {
-      // 出力先の要素を取得する
       var outputContent = document.getElementById('output-content');
+      var lines         = markdownText.split('\n');
+      var htmlLines     = [];
+      var inList        = false; // <ul> が開いているか
+      var inOrderedList = false; // <ol> が開いているか
 
-      // 改行で分割して行の配列にする
-      var lines = markdownText.split('\n');
-
-      // 変換後のHTML文字列を入れる配列
-      var htmlLines = [];
-
-      // 現在開いているリスト種別を管理するフラグ
-      var inList        = false; // <ul>（箇条書き）が開いているか
-      var inOrderedList = false; // <ol>（番号付き）が開いているか
-
-      // ===== 開いているリストタグをすべて閉じる共通処理 =====
-      // 見出し・区切り線・空行が来たときに呼び出す
+      // 開いているリストタグをすべて閉じる共通処理
       function closeOpenLists() {
         if (inList)        { htmlLines.push('</ul>'); inList = false; }
         if (inOrderedList) { htmlLines.push('</ol>'); inOrderedList = false; }
       }
 
-      // ===== 各行を順番に処理する =====
       for (var i = 0; i < lines.length; i++) {
         var line = lines[i];
 
-        // --- 見出し3（### ）→ <h4> ---
-        // ※ 長いプレフィックスから先にチェックすることで ## や # との誤判定を防ぐ
+        // 長いプレフィックスから先にチェックすることで誤判定を防ぐ
         if (line.startsWith('### ')) {
           closeOpenLists();
           htmlLines.push('<h4>' + escapeHtml(line.slice(4)) + '</h4>');
-        }
-
-        // --- 見出し2（## ）→ <h3> ---
-        else if (line.startsWith('## ')) {
+        } else if (line.startsWith('## ')) {
           closeOpenLists();
           htmlLines.push('<h3>' + escapeHtml(line.slice(3)) + '</h3>');
-        }
-
-        // --- 見出し1（# ）→ <h2> ---
-        // ※ ## や ### は上のブランチで処理済みなので、ここに来るのは単一 # のみ
-        else if (line.startsWith('# ')) {
+        } else if (line.startsWith('# ')) {
           closeOpenLists();
           htmlLines.push('<h2>' + escapeHtml(line.slice(2)) + '</h2>');
-        }
-
-        // --- 番号付きリスト（1. 2. 3. ... ）→ <ol><li> ---
-        else if (/^\d+\. /.test(line)) {
-          if (inList) { htmlLines.push('</ul>'); inList = false; } // 箇条書きが開いていれば先に閉じる
+        } else if (/^\d+\. /.test(line)) {
+          // 番号付きリスト
+          if (inList) { htmlLines.push('</ul>'); inList = false; }
           if (!inOrderedList) { htmlLines.push('<ol>'); inOrderedList = true; }
-          var numText = line.replace(/^\d+\. /, ''); // 「番号. 」を除いたテキストを取り出す
-          htmlLines.push('<li>' + applyInlineMarkdown(escapeHtml(numText)) + '</li>');
-        }
-
-        // --- 箇条書き（- または * ）→ <ul><li> ---
-        else if (line.startsWith('- ') || line.startsWith('* ')) {
-          if (inOrderedList) { htmlLines.push('</ol>'); inOrderedList = false; } // 番号リストが開いていれば先に閉じる
+          htmlLines.push('<li>' + applyInlineMarkdown(escapeHtml(line.replace(/^\d+\. /, ''))) + '</li>');
+        } else if (line.startsWith('- ') || line.startsWith('* ')) {
+          // 箇条書きリスト
+          if (inOrderedList) { htmlLines.push('</ol>'); inOrderedList = false; }
           if (!inList) { htmlLines.push('<ul>'); inList = true; }
-          var ulText = line.slice(2); // 「- 」または「* 」を除いたテキストを取り出す
-          htmlLines.push('<li>' + applyInlineMarkdown(escapeHtml(ulText)) + '</li>');
-        }
-
-        // --- 区切り線（--- のみの行）→ <hr> ---
-        else if (line.trim() === '---') {
+          htmlLines.push('<li>' + applyInlineMarkdown(escapeHtml(line.slice(2))) + '</li>');
+        } else if (line.trim() === '---') {
           closeOpenLists();
           htmlLines.push('<hr>');
-        }
-
-        // --- 空行 → リストを閉じるトリガー ---
-        else if (line.trim() === '') {
+        } else if (line.trim() === '') {
           closeOpenLists();
-          htmlLines.push(''); // 空行はそのまま残す（段落間の余白）
-        }
-
-        // --- 通常のテキスト行 → <p> ---
-        else {
+          htmlLines.push('');
+        } else {
           closeOpenLists();
           htmlLines.push('<p>' + applyInlineMarkdown(escapeHtml(line)) + '</p>');
         }
       }
 
-      // 末尾で開いたままのリストを閉じる
-      closeOpenLists();
-
-      // 生成したHTML文字列をまとめて出力エリアに適用する
+      closeOpenLists(); // 末尾で開いたままのリストを閉じる
       outputContent.innerHTML = htmlLines.join('\n');
     }
 
-    // ===== インラインMarkdown（太字）を HTML に変換するヘルパー関数 =====
+    // **太字** を <strong> に変換するインラインMarkdownヘルパー
     function applyInlineMarkdown(text) {
-      // **太字** を <strong>太字</strong> に変換する
       return text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
     }
 
-    // ===== HTMLの特殊文字をエスケープするヘルパー関数（XSS対策）=====
-    // ユーザー入力やAI出力をHTMLとして表示する際に必須の処理
+    // HTMLの特殊文字をエスケープする関数（XSS対策：必ず escapeHtml を先に通す）
     function escapeHtml(text) {
       return text
-        .replace(/&/g, '&amp;')   // & → &amp;
-        .replace(/</g, '&lt;')    // < → &lt;
-        .replace(/>/g, '&gt;')    // > → &gt;
-        .replace(/"/g, '&quot;')  // " → &quot;
-        .replace(/'/g, '&#039;'); // ' → &#039;
+        .replace(/&/g,  '&amp;')
+        .replace(/</g,  '&lt;')
+        .replace(/>/g,  '&gt;')
+        .replace(/"/g,  '&quot;')
+        .replace(/'/g,  '&#039;');
     }
   </script>
 

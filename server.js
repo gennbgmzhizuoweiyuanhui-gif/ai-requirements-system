@@ -8,9 +8,41 @@
 // Node.js 標準モジュールを読み込む
 var http  = require('http'); // ブラウザからのリクエストを受け付けるHTTPサーバー
 var https = require('https'); // Anthropic APIへのHTTPSリクエストを送るモジュール
+var path  = require('path');  // ファイルパス操作
+var fs    = require('fs');    // ファイル読み込み（静的ファイル配信用）
 
 // プロキシサーバーが待ち受けるポート番号
 var PORT = 3001;
+
+// ===== EXE化対応：静的ファイルの基準ディレクトリを決定する =====
+// pkg でビルドした EXE として実行中は process.pkg が truthy になる。
+// その場合、EXE ファイルと同じディレクトリ（process.execPath）を基準にする。
+// 通常の node 実行時は server.js と同じディレクトリ（__dirname）を使う。
+var basePath = process.pkg ? path.dirname(process.execPath) : __dirname;
+
+// 拡張子ごとの Content-Type マッピング
+var MIME_TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.png':  'image/png',
+  '.ico':  'image/x-icon',
+  '.js':   'application/javascript',
+  '.css':  'text/css'
+};
+
+// ===== 静的ファイルをブラウザへ返すヘルパー =====
+function serveStaticFile(res, filePath) {
+  var ext         = path.extname(filePath).toLowerCase();
+  var contentType = MIME_TYPES[ext] || 'application/octet-stream';
+  fs.readFile(filePath, function(err, data) {
+    if (err) {
+      res.writeHead(404, { 'Content-Type': 'text/plain' });
+      res.end('File not found: ' + path.basename(filePath));
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': contentType });
+    res.end(data);
+  });
+}
 
 // HTTPサーバーを作成する
 var server = http.createServer(function(req, res) {
@@ -26,6 +58,20 @@ var server = http.createServer(function(req, res) {
   if (req.method === 'OPTIONS') {
     res.writeHead(200);
     res.end();
+    return;
+  }
+
+  // ===== 静的ファイルの配信（GETリクエスト）=====
+  if (req.method === 'GET') {
+    var url = req.url.split('?')[0]; // クエリ文字列を除去する
+    if (url === '/' || url === '/index.html') {
+      serveStaticFile(res, path.join(basePath, 'index.html'));
+    } else if (url === '/icon.png') {
+      serveStaticFile(res, path.join(basePath, 'icon.png'));
+    } else {
+      res.writeHead(404, { 'Content-Type': 'text/plain' });
+      res.end('Not found');
+    }
     return;
   }
 

@@ -1,7 +1,23 @@
 {
   "name": "ai-requirements-system",
   "version": "1.0.0",
+  "main": "server.js",
+  "bin": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "build:exe": "pkg server.js --targets node18-win-x64 --output dist/ai-requirements-system.exe --assets index.html,icon.png"
+  },
   "engines": {
     "node": "24.x"
+  },
+  "pkg": {
+    "assets": [
+      "index.html",
+      "icon.png"
+    ],
+    "targets": [
+      "node18-win-x64"
+    ],
+    "outputPath": "dist"
   }
 }

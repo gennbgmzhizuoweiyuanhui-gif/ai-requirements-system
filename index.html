@@ -1375,10 +1375,10 @@
       async function callClaudeApi(apiKey, systemPrompt, userMessage) {
         var provider    = providerSelect.value; // 現在選択中のプロバイダーを取得する
         var requestBody = {
-          provider:   provider,                    // プロキシ側でルーティングに使用する
-          model:      'claude-sonnet-4-20250514',  // Claudeのモデル（Gemini側は無視される）
-          max_tokens: 4000,                        // 最大生成トークン数
-          system:     systemPrompt,                // システムプロンプト
+          provider:   provider,             // プロキシ側でルーティングに使用する
+          model:      'claude-sonnet-4-5',  // Claude Sonnet 4.5（4系の安定版）
+          max_tokens: 4096,                 // 最大生成トークン数（4096以上推奨）
+          system:     systemPrompt,         // システムプロンプト
           messages:   [{ role: 'user', content: userMessage }]
         };
 
@@ -1400,13 +1400,14 @@
               : 'APIキーが無効です。正しいClaudeのAPIキーを入力してください。';
           } else if (response.status === 429) {
             errorMsg += 'APIの利用制限に達しました。しばらく待ってから再試行してください。';
-          } else if (response.status === 400) {
-            errorMsg += 'リクエストの形式が不正です。入力内容を確認してください。';
           } else {
+            // 400 を含むすべてのエラーでAPIの実際のメッセージを取得して表示する
             try {
               var errorData = await response.json();
-              errorMsg += (errorData.error && errorData.error.message)
-                ? errorData.error.message : '不明なエラー';
+              var apiMsg = (errorData.error && errorData.error.message)
+                ? errorData.error.message
+                : JSON.stringify(errorData);
+              errorMsg += apiMsg;
             } catch (_) {
               errorMsg += 'サーバーからのレスポンスを解析できませんでした。';
             }

@@ -71,6 +71,13 @@ var server = http.createServer(function(req, res) {
 
     var provider = parsed.provider || 'claude'; // 'claude' または 'gemini'
 
+    // ===== デバッグ：リクエスト内容をコンソールに出力する =====
+    console.log('[' + new Date().toISOString() + '] provider=' + provider +
+      ' model=' + parsed.model +
+      ' max_tokens=' + parsed.max_tokens +
+      ' system_length=' + (parsed.system || '').length +
+      ' user_length=' + ((parsed.messages && parsed.messages[0] && parsed.messages[0].content) || '').length);
+
     // ===== Gemini API へのルーティング =====
     if (provider === 'gemini') {
       // system プロンプトとユーザーメッセージを結合して Gemini 形式に変換する
@@ -154,9 +161,20 @@ var server = http.createServer(function(req, res) {
 
     // ===== Anthropic API へリクエストを送信する =====
     var proxyReq = https.request(options, function(proxyRes) {
-      // Anthropic API からのレスポンスステータスとJSONヘッダーをそのままブラウザへ返す
+      console.log('[Claude] レスポンスステータス:', proxyRes.statusCode);
+      // エラーレスポンスの場合はボディを収集してログに出力する
+      if (proxyRes.statusCode !== 200) {
+        var errBody = '';
+        proxyRes.on('data', function(c) { errBody += c; });
+        proxyRes.on('end', function() {
+          console.error('[Claude] エラーレスポンス:', errBody);
+          res.writeHead(proxyRes.statusCode, { 'Content-Type': 'application/json' });
+          res.end(errBody);
+        });
+        return;
+      }
+      // 正常レスポンスはそのままブラウザへパイプする
       res.writeHead(proxyRes.statusCode, { 'Content-Type': 'application/json' });
-      // レスポンスボディをそのままパイプしてブラウザへ流す
       proxyRes.pipe(res);
     });
 

@@ -5,6 +5,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AI要件定義システム</title>
+  <!-- marked.js：MarkdownをHTMLへ正確に変換するライブラリ -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <!-- html2pdf.js：ブラウザ内でPDFを生成するライブラリ -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <style>
     /* ===== CSS カスタムプロパティ（テーマカラーを一元管理）===== */
     :root {
@@ -922,6 +926,112 @@
       font-size: 11px;
       letter-spacing: 1px;
     }
+
+    /* ===== #output-content 内の marked.js レンダリング CSS ===== */
+    #output-content h1 {
+      color: #0100be;
+      font-size: 20px;
+      border-bottom: 2px solid #82ff03;
+      padding-bottom: 8px;
+      margin: 20px 0 12px;
+    }
+    #output-content h2 {
+      color: #0100be;
+      font-size: 17px;
+      border-bottom: 1px solid rgba(130,255,3,0.7);
+      padding-bottom: 6px;
+      margin: 18px 0 10px;
+    }
+    #output-content h3 {
+      color: #0100be;
+      font-size: 15px;
+      margin: 14px 0 8px;
+    }
+    #output-content ul, #output-content ol {
+      padding-left: 24px;
+      margin: 8px 0;
+    }
+    #output-content li {
+      line-height: 1.8;
+      margin-bottom: 4px;
+    }
+    #output-content strong {
+      color: #0100be;
+      font-weight: 700;
+    }
+    #output-content table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 12px 0;
+      font-size: 14px;
+    }
+    #output-content th {
+      background: #0100be;
+      color: white;
+      padding: 8px 12px;
+      text-align: left;
+      border: 1px solid #0100be;
+    }
+    #output-content td {
+      padding: 7px 12px;
+      border: 1px solid rgba(1,0,190,0.20);
+    }
+    #output-content tr:nth-child(even) td {
+      background: rgba(1,0,190,0.03);
+    }
+    #output-content blockquote {
+      border-left: 4px solid #82ff03;
+      background: rgba(1,0,190,0.04);
+      padding: 10px 16px;
+      margin: 10px 0;
+      color: #4a5568;
+      border-radius: 0 6px 6px 0;
+    }
+    #output-content p {
+      line-height: 1.75;
+      margin: 8px 0;
+    }
+    #output-content hr {
+      border: none;
+      border-top: 1px solid rgba(1,0,190,0.15);
+      margin: 16px 0;
+    }
+    #output-content code {
+      background: rgba(1,0,190,0.06);
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-size: 13px;
+    }
+    /* 編集モード：プレーンテキスト表示（マークダウン記法がそのまま見える）*/
+    #output-content.editing {
+      white-space: pre-wrap;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 14px;
+      line-height: 1.7;
+      color: #0a0a0a;
+      outline: 2px solid #82ff03; /* 編集中であることを視覚的に示す */
+      border-radius: 4px;
+      padding: 4px;
+    }
+
+    /* ===== PDF出力ボタン ===== */
+    #pdf-export-btn {
+      background: #c0392b;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+    #pdf-export-btn:hover   { background: #a93226; }
+    #pdf-export-btn:active  { background: #922b21; }
+    #pdf-export-btn:disabled {
+      background: #aaa;
+      cursor: not-allowed;
+    }
   </style>
 </head>
 <body>
@@ -1037,6 +1147,10 @@
               <!-- Word出力ボタン -->
               <button id="word-export-btn" title="Word形式（.doc）でダウンロードします">
                 📄 Word出力
+              </button>
+              <!-- PDF出力ボタン -->
+              <button id="pdf-export-btn" title="PDF形式でダウンロードします">
+                📑 PDF出力
               </button>
               <!-- Excel(CSV)出力ボタン -->
               <button id="excel-export-btn" title="CSV形式でダウンロードします">
@@ -1602,19 +1716,9 @@
           var outputContentEl = document.getElementById('output-content');
           outputContentEl.style.opacity    = '1';
           outputContentEl.style.transition = '';
-          // 生成後は常に編集可能にする（以後 contenteditable を外さない）
-          outputContentEl.contentEditable = 'true';
-
-          // インライン編集内容をチャットコンテキスト・Markdownコピー用に同期する
-          // （DOMContentLoaded 内で一度だけ登録する）
-          if (!outputContentEl._editSyncAdded) {
-            outputContentEl._editSyncAdded = true;
-            outputContentEl.addEventListener('input', function() {
-              window.generatedMarkdown = outputContentEl.innerText;
-            });
-          }
 
           // Markdownをレンダリングして表示する
+          // （renderMarkdown内でcontenteditable制御とblur同期を登録する）
           renderMarkdown(markdownText);
 
           // 出力カードを IntersectionObserver の監視対象に追加する
@@ -2148,79 +2252,110 @@
         setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
       });
 
+      // ===== PDF（html2pdf.js）ダウンロード =====
+      document.getElementById('pdf-export-btn').addEventListener('click', async function() {
+        var md = window.generatedMarkdown;
+        if (!md) { alert('先に要件定義書を生成してください。'); return; }
+
+        var pdfBtn   = document.getElementById('pdf-export-btn');
+        var sidebar  = document.getElementById('chat-sidebar');
+        pdfBtn.disabled    = true;
+        pdfBtn.textContent = '⏳ 生成中...';
+
+        // サイドバーを一時非表示にしてから要件定義書エリアだけをPDF化する
+        var sidebarWasVisible = sidebar && sidebar.style.display !== 'none';
+        if (sidebarWasVisible) sidebar.style.display = 'none';
+
+        try {
+          // PDF出力用に一時的なdivを生成して要件定義書HTMLをコピーする
+          var pdfSource = document.createElement('div');
+          pdfSource.innerHTML = document.getElementById('output-content').innerHTML;
+
+          // PDF内のスタイルを付与する（CDNスタイルシートなしで単体のHTMLを渡すため）
+          pdfSource.style.cssText =
+            'font-family: "Hiragino Sans", "Meiryo", sans-serif;' +
+            'font-size: 11pt; line-height: 1.75; color: #0a0a0a; padding: 0;';
+
+          // html2pdf の設定
+          var opt = {
+            margin:   [20, 15, 20, 15], // 上・右・下・左（mm）
+            filename: '要件定義書_' + getExportDateStr() + '.pdf',
+            image:    { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+          };
+
+          await html2pdf().set(opt).from(pdfSource).save();
+        } finally {
+          // サイドバーを元の表示状態に戻す
+          if (sidebarWasVisible) sidebar.style.display = '';
+          pdfBtn.disabled    = false;
+          pdfBtn.textContent = '📑 PDF出力';
+        }
+      });
+
     }); // DOMContentLoaded end
 
     // ============================================================
-    // Markdownレンダリング関数（DOMContentLoaded外に置いてグローバルに使用）
+    // Markdownレンダリング関数（marked.js を使用）
     // ============================================================
-    // Markdown → HTML 変換ルール（優先度順）：
-    //   # text  → <h2>（セクション大見出し）
-    //   ## text → <h3>（サブ見出し）
-    //   ### text→ <h4>（小見出し）
-    //   1. text → <ol><li>（番号付きリスト）
-    //   - text  → <ul><li>（箇条書きリスト）
-    //   ---     → <hr>（区切り線）
-    //   **text**→ <strong>（太字インライン）
-    //   空行    → リストを閉じる区切り
-    //   その他  → <p>（通常段落）
+    // marked.js が利用可能な場合はそれを使い、万一ロード失敗時はフォールバックする。
+    // contenteditable との共存：
+    //   - 通常時：HTMLレンダリング、contenteditable="false"
+    //   - クリック時：プレーンテキスト編集モードに切り替え
+    //   - ブラー時：編集内容を保存して再レンダリング
     function renderMarkdown(markdownText) {
       var outputContent = document.getElementById('output-content');
-      var lines         = markdownText.split('\n');
-      var htmlLines     = [];
-      var inList        = false; // <ul> が開いているか
-      var inOrderedList = false; // <ol> が開いているか
 
-      // 開いているリストタグをすべて閉じる共通処理
-      function closeOpenLists() {
-        if (inList)        { htmlLines.push('</ul>'); inList = false; }
-        if (inOrderedList) { htmlLines.push('</ol>'); inOrderedList = false; }
+      // marked.js で HTML に変換して表示する
+      if (window.marked) {
+        outputContent.innerHTML = marked.parse(markdownText);
+      } else {
+        // marked.js が未ロードの場合は改行のみ変換して表示するフォールバック
+        outputContent.innerHTML = '<pre style="white-space:pre-wrap">' + escapeHtml(markdownText) + '</pre>';
       }
 
-      for (var i = 0; i < lines.length; i++) {
-        var line = lines[i];
+      // レンダリング後は読み取り専用状態に戻す
+      outputContent.contentEditable = 'false';
+      outputContent.classList.remove('editing');
 
-        // 長いプレフィックスから先にチェックすることで誤判定を防ぐ
-        if (line.startsWith('### ')) {
-          closeOpenLists();
-          htmlLines.push('<h4>' + escapeHtml(line.slice(4)) + '</h4>');
-        } else if (line.startsWith('## ')) {
-          closeOpenLists();
-          htmlLines.push('<h3>' + escapeHtml(line.slice(3)) + '</h3>');
-        } else if (line.startsWith('# ')) {
-          closeOpenLists();
-          htmlLines.push('<h2>' + escapeHtml(line.slice(2)) + '</h2>');
-        } else if (/^\d+\. /.test(line)) {
-          // 番号付きリスト
-          if (inList) { htmlLines.push('</ul>'); inList = false; }
-          if (!inOrderedList) { htmlLines.push('<ol>'); inOrderedList = true; }
-          htmlLines.push('<li>' + applyInlineMarkdown(escapeHtml(line.replace(/^\d+\. /, ''))) + '</li>');
-        } else if (line.startsWith('- ') || line.startsWith('* ')) {
-          // 箇条書きリスト
-          if (inOrderedList) { htmlLines.push('</ol>'); inOrderedList = false; }
-          if (!inList) { htmlLines.push('<ul>'); inList = true; }
-          htmlLines.push('<li>' + applyInlineMarkdown(escapeHtml(line.slice(2))) + '</li>');
-        } else if (line.trim() === '---') {
-          closeOpenLists();
-          htmlLines.push('<hr>');
-        } else if (line.trim() === '') {
-          closeOpenLists();
-          htmlLines.push('');
-        } else {
-          closeOpenLists();
-          htmlLines.push('<p>' + applyInlineMarkdown(escapeHtml(line)) + '</p>');
-        }
+      // ===== contenteditable との共存：一度だけイベントを登録する =====
+      if (!outputContent._editHandlerBound) {
+        outputContent._editHandlerBound = true;
+
+        // クリック：HTMLレンダリング → プレーンテキスト編集モードに切り替える
+        outputContent.addEventListener('click', function() {
+          if (outputContent.classList.contains('editing')) return; // 既に編集中なら無視する
+          outputContent.classList.add('editing');
+          outputContent.contentEditable = 'true';
+          // 表示をMarkdown原文に切り替えてカーソルを末尾に置く
+          outputContent.innerText = window.generatedMarkdown || '';
+          outputContent.focus();
+          var range = document.createRange();
+          range.selectNodeContents(outputContent);
+          range.collapse(false); // falseで末尾に折りたたむ
+          var sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+        });
+
+        // ブラー：編集内容を保存して再レンダリングする
+        outputContent.addEventListener('blur', function() {
+          if (!outputContent.classList.contains('editing')) return;
+          var newMarkdown = outputContent.innerText;
+          window.generatedMarkdown = newMarkdown; // チャット・コピー・エクスポートに反映する
+          renderMarkdown(newMarkdown);
+        });
       }
-
-      closeOpenLists(); // 末尾で開いたままのリストを閉じる
-      outputContent.innerHTML = htmlLines.join('\n');
     }
 
-    // **太字** を <strong> に変換するインラインMarkdownヘルパー
+    // **太字** を <strong> に変換するインラインMarkdownヘルパー（Word出力で使用）
     function applyInlineMarkdown(text) {
       return text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
     }
 
-    // HTMLの特殊文字をエスケープする関数（XSS対策：必ず escapeHtml を先に通す）
+    // HTMLの特殊文字をエスケープする関数（Word出力・フォールバックで使用）
     function escapeHtml(text) {
       return text
         .replace(/&/g,  '&amp;')

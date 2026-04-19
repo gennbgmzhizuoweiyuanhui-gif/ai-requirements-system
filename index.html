@@ -9,6 +9,8 @@
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <!-- html2pdf.js：ブラウザ内でPDFを生成するライブラリ -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <!-- PDF.js：PDFファイルからテキストを抽出するライブラリ -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <style>
     /* ===== CSS カスタムプロパティ（テーマカラーを一元管理）===== */
     :root {
@@ -1195,6 +1197,12 @@
   </footer>
 
   <script>
+    // ===== PDF.js ワーカーの初期設定（CDNスクリプト読み込み直後に実行）=====
+    if (window.pdfjsLib) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+
     // ===== DOMが読み込まれた後に初期化処理を実行する =====
     document.addEventListener('DOMContentLoaded', function() {
 
@@ -1849,21 +1857,14 @@
         newFiles.forEach(function(file) {
           var ext = file.name.split('.').pop().toLowerCase();
 
-          // PDF は非対応
-          if (ext === 'pdf') {
-            fileErrorArea.style.display = 'block';
-            fileErrorArea.textContent   = '⚠️ PDFは現在非対応です。テキスト形式（.txt, .mdなど）でお試しください。';
-            return;
-          }
-
-          // ファイル数上限チェック
+          // ファイル数上限チェック（全形式共通）
           if (attachedFiles.length >= MAX_FILES) {
             fileErrorArea.style.display = 'block';
             fileErrorArea.textContent   = '⚠️ 添付ファイルは最大5ファイルまでです。';
             return;
           }
 
-          // 合計サイズ上限チェック
+          // 合計サイズ上限チェック（全形式共通）
           var totalSize = attachedFiles.reduce(function(s, f) { return s + f.size; }, 0) + file.size;
           if (totalSize > MAX_BYTES) {
             fileErrorArea.style.display = 'block';
@@ -1876,7 +1877,61 @@
             return;
           }
 
-          // FileReader でテキストとして読み込む
+          // ===== PDF：PDF.js でテキストを非同期抽出する =====
+          if (ext === 'pdf') {
+            // プレースホルダーをリストに追加してスロットを確保する
+            var pdfEntry = { name: file.name, size: file.size, content: '', isCode: false, isPdf: true };
+            attachedFiles.push(pdfEntry);
+
+            // ローディングバッジを生成してDOMに追加する
+            var pdfBadge    = document.createElement('div');
+            pdfBadge.className    = 'file-badge';
+            pdfBadge.dataset.name = file.name;
+
+            var pdfNameEl = document.createElement('span');
+            pdfNameEl.className   = 'file-badge-name';
+            pdfNameEl.textContent = '📑 ' + file.name;
+            pdfNameEl.title       = file.name;
+
+            var pdfStatusEl = document.createElement('span');
+            pdfStatusEl.className   = 'file-badge-size';
+            pdfStatusEl.textContent = '読み込み中...'; // 抽出完了後に更新する
+
+            var pdfRemoveBtn = document.createElement('button');
+            pdfRemoveBtn.className   = 'file-badge-remove';
+            pdfRemoveBtn.textContent = '×';
+            pdfRemoveBtn.title       = 'このファイルを削除';
+            pdfRemoveBtn.addEventListener('click', function() {
+              attachedFiles = attachedFiles.filter(function(f) { return f !== pdfEntry; });
+              pdfBadge.remove();
+              fileErrorArea.style.display = 'none';
+            });
+
+            pdfBadge.appendChild(pdfNameEl);
+            pdfBadge.appendChild(pdfStatusEl);
+            pdfBadge.appendChild(pdfRemoveBtn);
+            fileBadgeArea.appendChild(pdfBadge);
+
+            // PDF.js でテキストを非同期抽出する
+            extractPdfText(file).then(function(text) {
+              // 抽出成功：エントリにテキストを保存してバッジを完了表示に更新する
+              pdfEntry.content        = text;
+              var sz                  = file.size < 1024 ? file.size + 'B' : Math.round(file.size / 1024) + 'KB';
+              pdfStatusEl.textContent = '(' + sz + ')';
+            }).catch(function() {
+              // 抽出失敗：リストとバッジから除去してエラーメッセージを表示する
+              attachedFiles = attachedFiles.filter(function(f) { return f !== pdfEntry; });
+              pdfBadge.remove();
+              fileErrorArea.style.display = 'block';
+              fileErrorArea.textContent   =
+                '⚠️ 「' + file.name + '」のPDFテキスト抽出に失敗しました。' +
+                'スキャンPDFは非対応です。テキスト形式のPDFをお試しください。';
+            });
+
+            return; // PDF処理は非同期なのでここで forEach の次へ進む
+          }
+
+          // ===== テキスト・ソースコード：FileReader で同期的に読み込む =====
           var isCode = CODE_EXTS.indexOf(ext) !== -1;
           var reader = new FileReader();
           reader.onload = function(e) {
@@ -2348,6 +2403,26 @@
           renderMarkdown(newMarkdown);
         });
       }
+    }
+
+    // ============================================================
+    // PDF.js テキスト抽出関数
+    // ============================================================
+    // 全ページのテキストを結合して「--- ページN ---」区切りで返す
+    async function extractPdfText(file) {
+      var arrayBuffer = await file.arrayBuffer();
+      var pdf         = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      var pageTexts   = [];
+
+      for (var i = 1; i <= pdf.numPages; i++) {
+        var page        = await pdf.getPage(i);
+        var content     = await page.getTextContent();
+        // テキストアイテムをスペースで結合してページのテキストを組み立てる
+        var pageText    = content.items.map(function(item) { return item.str; }).join(' ');
+        pageTexts.push('--- ページ' + i + ' ---\n' + pageText);
+      }
+
+      return pageTexts.join('\n\n');
     }
 
     // **太字** を <strong> に変換するインラインMarkdownヘルパー（Word出力で使用）

@@ -817,6 +817,76 @@
       }
     }
 
+    /* ===== ファイル添付ボタン ===== */
+    #attach-btn {
+      background: rgba(1,0,190,0.06);
+      border: 1px solid rgba(1,0,190,0.22);
+      color: #0100be;
+      padding: 10px 18px;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    #attach-btn:hover { background: rgba(1,0,190,0.12); }
+
+    /* ===== 添付ファイルバッジエリア ===== */
+    #file-badge-area {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    /* 各バッジ：フェードインアニメーション付き */
+    .file-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(1,0,190,0.06);
+      border: 1px solid rgba(1,0,190,0.20);
+      border-radius: 20px;
+      padding: 4px 8px 4px 12px;
+      font-size: 13px;
+      color: #0100be;
+      animation: msgFadeIn 0.25s ease forwards;
+    }
+
+    /* バッジ内のファイル名（長い場合は省略）*/
+    .file-badge-name {
+      max-width: 160px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* バッジ内のファイルサイズ */
+    .file-badge-size {
+      font-size: 11px;
+      color: rgba(1,0,190,0.50);
+      white-space: nowrap;
+    }
+
+    /* バッジ内の削除ボタン */
+    .file-badge-remove {
+      background: none;
+      border: none;
+      color: rgba(1,0,190,0.45);
+      cursor: pointer;
+      font-size: 15px;
+      line-height: 1;
+      padding: 0 2px;
+      transition: color 0.2s;
+      font-family: inherit;
+    }
+    .file-badge-remove:hover { color: #cc0000; }
+
+    /* ファイル添付エラー表示 */
+    #file-error-area {
+      display: none;
+      font-size: 13px;
+      color: #cc0000;
+      margin-top: 6px;
+    }
+
     /* ===== フッター ===== */
     footer {
       text-align: center;
@@ -854,13 +924,29 @@
       <textarea id="input-textarea" placeholder=""></textarea>
       <div id="char-count">0 文字</div>
 
-      <!-- 音声入力エリア（Web Speech API非対応ブラウザでは非表示）-->
-      <div id="voice-area" style="margin-top:14px; display:flex; gap:12px; align-items:center;">
+      <!-- 音声入力・ファイル添付エリア -->
+      <div id="voice-area" style="margin-top:14px; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
         <button class="btn" id="voice-btn" title="ボタンを押している間、音声を録音します">
           🎤 音声入力（押している間）
         </button>
+        <!-- ファイル添付：非表示のfile inputをボタンから呼び出す -->
+        <input
+          type="file"
+          id="file-input"
+          multiple
+          accept=".txt,.md,.csv,.js,.ts,.py,.java,.php,.rb,.go,.cs,.html,.css,.json,.xml,.yaml,.yml,.sql,.pdf"
+          style="display:none;"
+        >
+        <button class="btn" id="attach-btn" title="テキスト・ソースコードファイルを添付できます（最大5ファイル・合計500KB）">
+          📎 ファイルを添付する
+        </button>
         <span id="voice-status"></span>
       </div>
+
+      <!-- 添付ファイルバッジ表示エリア（ファイル選択後に動的生成）-->
+      <div id="file-badge-area"></div>
+      <!-- ファイル添付エラー（上限超過・非対応形式）-->
+      <div id="file-error-area"></div>
 
       <!-- ヒアリング開始ボタン（クリックするとAIが確認質問を生成する）-->
       <button class="btn" id="hearing-btn">
@@ -1227,7 +1313,8 @@
           var responseText = await callClaudeApi(
             apiKey,
             hearingSystemPrompt,
-            '以下の要望に対して、確認質問と各質問への想定回答をJSON形式で生成してください。\n\n' + inputText
+            '以下の要望に対して、確認質問と各質問への想定回答をJSON形式で生成してください。\n\n' +
+            inputText + buildAttachmentContext()
           );
 
           // ===== JSON形式でパースする（フォールバックあり）=====
@@ -1431,11 +1518,12 @@
 - RPO・RTOはヒアリング情報から合理的な値を提案してください（情報不足の場合はTBDと記載）
 - 日本語で出力してください`;
 
-          // ユーザーメッセージ：最初の要望＋質問＋回答をまとめて渡す
+          // ユーザーメッセージ：最初の要望＋質問＋回答＋添付ファイルをまとめて渡す
           var requirementsUserMessage =
-            '【最初の要望】\n'   + savedInitialRequest  +
+            '【最初の要望】\n'       + savedInitialRequest  +
             '\n\n【AIの確認質問】\n' + savedQuestionsText   +
             '\n\n【担当者の回答】\n' + answerText            +
+            buildAttachmentContext() +
             '\n\n以上をもとに要件定義書を作成してください。';
 
           var markdownText = await callClaudeApi(apiKey, requirementsSystemPrompt, requirementsUserMessage);
@@ -1567,7 +1655,141 @@
       }
 
       // ============================================================
-      // ⑩ コピーボタン
+      // ⑩ ファイル添付機能
+      // ============================================================
+      var attachBtn     = document.getElementById('attach-btn');
+      var fileInput     = document.getElementById('file-input');
+      var fileBadgeArea = document.getElementById('file-badge-area');
+      var fileErrorArea = document.getElementById('file-error-area');
+      var attachedFiles = []; // { name, size, content, isCode } の配列
+
+      // 対応拡張子の定義
+      var CODE_EXTS  = ['js','ts','py','java','php','rb','go','cs','html','css','json','xml','yaml','yml','sql'];
+      var MAX_FILES  = 5;
+      var MAX_BYTES  = 500 * 1024; // 500KB
+
+      // 添付ボタン → 非表示のfile inputをクリックする
+      attachBtn.addEventListener('click', function() {
+        fileInput.click();
+      });
+
+      // ファイル選択後の処理
+      fileInput.addEventListener('change', function() {
+        var newFiles = Array.from(fileInput.files);
+        fileErrorArea.style.display = 'none';
+        fileErrorArea.textContent   = '';
+
+        newFiles.forEach(function(file) {
+          var ext = file.name.split('.').pop().toLowerCase();
+
+          // PDF は非対応
+          if (ext === 'pdf') {
+            fileErrorArea.style.display = 'block';
+            fileErrorArea.textContent   = '⚠️ PDFは現在非対応です。テキスト形式（.txt, .mdなど）でお試しください。';
+            return;
+          }
+
+          // ファイル数上限チェック
+          if (attachedFiles.length >= MAX_FILES) {
+            fileErrorArea.style.display = 'block';
+            fileErrorArea.textContent   = '⚠️ 添付ファイルは最大5ファイルまでです。';
+            return;
+          }
+
+          // 合計サイズ上限チェック
+          var totalSize = attachedFiles.reduce(function(s, f) { return s + f.size; }, 0) + file.size;
+          if (totalSize > MAX_BYTES) {
+            fileErrorArea.style.display = 'block';
+            fileErrorArea.textContent   = '⚠️ 添付ファイルの合計サイズは500KBまでです。';
+            return;
+          }
+
+          // 重複チェック（同名・同サイズは除外）
+          if (attachedFiles.some(function(f) { return f.name === file.name && f.size === file.size; })) {
+            return;
+          }
+
+          // FileReader でテキストとして読み込む
+          var isCode = CODE_EXTS.indexOf(ext) !== -1;
+          var reader = new FileReader();
+          reader.onload = function(e) {
+            var fileData = { name: file.name, size: file.size, content: e.target.result, isCode: isCode };
+            attachedFiles.push(fileData);
+            renderFileBadge(fileData);
+          };
+          reader.onerror = function() {
+            fileErrorArea.style.display = 'block';
+            fileErrorArea.textContent   = '⚠️ 「' + file.name + '」の読み込みに失敗しました。';
+          };
+          reader.readAsText(file, 'UTF-8');
+        });
+
+        // 同じファイルを再選択できるよう input をリセットする
+        fileInput.value = '';
+      });
+
+      // バッジ要素を生成して fileBadgeArea に追加する
+      function renderFileBadge(fileData) {
+        var badge      = document.createElement('div');
+        badge.className    = 'file-badge';
+        badge.dataset.name = fileData.name;
+
+        var sizeText = fileData.size < 1024
+          ? fileData.size + 'B'
+          : Math.round(fileData.size / 1024) + 'KB';
+
+        var nameEl = document.createElement('span');
+        nameEl.className   = 'file-badge-name';
+        nameEl.textContent = (fileData.isCode ? '💻 ' : '📄 ') + fileData.name;
+        nameEl.title       = fileData.name;
+
+        var sizeEl = document.createElement('span');
+        sizeEl.className   = 'file-badge-size';
+        sizeEl.textContent = '(' + sizeText + ')';
+
+        var removeBtn = document.createElement('button');
+        removeBtn.className   = 'file-badge-remove';
+        removeBtn.textContent = '×';
+        removeBtn.title       = 'このファイルを削除';
+        removeBtn.addEventListener('click', function() {
+          attachedFiles = attachedFiles.filter(function(f) { return !(f.name === fileData.name && f.size === fileData.size); });
+          badge.remove();
+          fileErrorArea.style.display = 'none';
+        });
+
+        badge.appendChild(nameEl);
+        badge.appendChild(sizeEl);
+        badge.appendChild(removeBtn);
+        fileBadgeArea.appendChild(badge);
+      }
+
+      // 添付ファイルのコンテキスト文字列を組み立てるヘルパー
+      // （hearing・generate の両方のユーザーメッセージに付与する）
+      function buildAttachmentContext() {
+        if (!attachedFiles.length) return '';
+
+        var hasCode = attachedFiles.some(function(f) { return f.isCode; });
+        var parts   = attachedFiles.map(function(f) {
+          return '【添付ファイル: ' + f.name + '】\n' + f.content + '\n---';
+        });
+
+        var context =
+          '\n\n以下の添付ファイルの内容も参考にして要件定義書を作成してください。\n\n' +
+          parts.join('\n\n');
+
+        // ソースコードが含まれる場合は特別指示を追加する
+        if (hasCode) {
+          context +=
+            '\n\n添付のソースコードから既存システムの機能・構造・技術スタックを読み取り、' +
+            '現状システム（As-Is）の把握に活用してください。' +
+            '既存機能は機能要件のShouldまたはMustとして適切に反映してください。';
+        }
+
+        return context;
+      }
+
+      // ============================================================
+      // ⑪ コピーボタン
       // ============================================================
       var copyBtn = document.getElementById('copy-btn');
 
@@ -1620,7 +1842,7 @@
       }
 
       // ============================================================
-      // ⑪ AIチャットサイドバー
+      // ⑫ AIチャットサイドバー
       // ============================================================
       var chatMessages    = document.getElementById('chat-messages');
       var chatInput       = document.getElementById('chat-input');
@@ -1749,7 +1971,7 @@
       });
 
       // ============================================================
-      // ⑫ エクスポートボタン（Word / Excel(CSV)）
+      // ⑬ エクスポートボタン（Word / Excel(CSV)）
       // ============================================================
 
       // 現在日付を YYYY-MM-DD 形式で返すヘルパー

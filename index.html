@@ -311,7 +311,7 @@
       color: #2d3748;     /* 文字色 */
     }
 
-    /* ===== 見出し2（## ）のスタイル ===== */
+    /* ===== 見出し1（# ）→ <h2> のスタイル：セクション大見出し ===== */
     #output-content h2 {
       font-size: 18px;             /* フォントサイズ */
       font-weight: bold;           /* 太字 */
@@ -321,7 +321,7 @@
       border-bottom: 2px solid #bee3f8; /* 薄いブルー下線 */
     }
 
-    /* ===== 見出し3（### ）のスタイル ===== */
+    /* ===== 見出し2（## ）→ <h3> のスタイル：サブセクション見出し ===== */
     #output-content h3 {
       font-size: 16px;     /* フォントサイズ */
       font-weight: bold;   /* 太字 */
@@ -329,13 +329,27 @@
       margin: 16px 0 8px;  /* 上下余白 */
     }
 
-    /* ===== 箇条書きリストのスタイル ===== */
+    /* ===== 見出し3（### ）→ <h4> のスタイル：小見出し ===== */
+    #output-content h4 {
+      font-size: 14px;     /* フォントサイズ */
+      font-weight: bold;   /* 太字 */
+      color: #4a5568;      /* グレー寄りのブルー */
+      margin: 12px 0 6px;  /* 上下余白 */
+    }
+
+    /* ===== 箇条書きリスト（- ）のスタイル ===== */
     #output-content ul {
       padding-left: 24px;  /* 左インデント */
       margin: 8px 0;       /* 上下余白 */
     }
 
-    /* ===== 箇条書き各項目のスタイル ===== */
+    /* ===== 番号付きリスト（1. ）のスタイル ===== */
+    #output-content ol {
+      padding-left: 24px;  /* 左インデント */
+      margin: 8px 0;       /* 上下余白 */
+    }
+
+    /* ===== リスト各項目のスタイル（ul・ol 共通）===== */
     #output-content li {
       margin-bottom: 6px;  /* 項目間の余白 */
       line-height: 1.7;    /* 行間 */
@@ -357,6 +371,51 @@
     /* ===== 段落のスタイル ===== */
     #output-content p {
       margin: 8px 0;  /* 上下余白 */
+    }
+
+    /* ===== 編集ボタン（グレー）===== */
+    #edit-btn {
+      background-color: #718096; /* グレー */
+      color: white;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    /* ===== 編集ボタン：ホバー時 ===== */
+    #edit-btn:hover {
+      background-color: #4a5568;
+    }
+
+    /* ===== 編集完了ボタン（グリーン）===== */
+    #edit-done-btn {
+      background-color: #48bb78; /* グリーン */
+      color: white;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    /* ===== 編集完了ボタン：ホバー時 ===== */
+    #edit-done-btn:hover {
+      background-color: #38a169;
+    }
+
+    /* ===== 編集中のコンテンツエリア：点線枠で編集可能を示す ===== */
+    #output-content[contenteditable="true"] {
+      border: 2px dashed #2b6cb0; /* 青い点線枠 */
+      border-radius: 8px;
+      padding: 12px;
+      outline: none;   /* デフォルトのフォーカス枠を消す */
+      cursor: text;    /* テキストカーソルを表示する */
     }
 
     /* ===== フッター ===== */
@@ -465,10 +524,21 @@
         <div class="section-title" style="margin-bottom:0; border-bottom:none; padding-bottom:0;">
           📄 生成された要件定義書
         </div>
-        <!-- Markdownをクリップボードにコピーするボタン -->
-        <button id="copy-btn" title="Markdown形式でクリップボードにコピーします">
-          📋 Markdownをコピー
-        </button>
+        <!-- ボタングループ（編集・編集完了・コピー）-->
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <!-- 編集ボタン：クリックでコンテンツを直接編集できるようにする（生成後に表示）-->
+          <button id="edit-btn" style="display:none;" title="要件定義書を直接編集します">
+            ✏️ 編集する
+          </button>
+          <!-- 編集完了ボタン：編集モードを終了して閲覧モードに戻る（編集中に表示）-->
+          <button id="edit-done-btn" style="display:none;" title="編集を完了して閲覧モードに戻ります">
+            ✅ 編集を完了する
+          </button>
+          <!-- Markdownをクリップボードにコピーするボタン -->
+          <button id="copy-btn" title="Markdown形式でクリップボードにコピーします">
+            📋 Markdownをコピー
+          </button>
+        </div>
       </div>
       <!-- Markdownをレンダリングして表示するエリア -->
       <div id="output-content"></div>
@@ -733,22 +803,22 @@
 
 必ず以下の6セクションをすべて含めてください。セクション名は正確に記載してください：
 
-## システム名
+# システム名
 （提案するシステムの名称。わかりやすい日本語で）
 
-## 目的・背景
+# 目的・背景
 （As-Is：現状の課題、To-Be：導入後の理想の状態、なぜこのシステムが必要か）
 
-## 機能要件
+# 機能要件
 （システムが「何をするか」を箇条書きで具体的に記述。MoSCoW分析でMust/Shouldを明示。- で始める）
 
-## 非機能要件
+# 非機能要件
 （性能・セキュリティ・使いやすさ・対応デバイス・保守性など。- で始める）
 
-## 用語定義
+# 用語定義
 （このシステムで使う専門用語・業界用語の定義。- 用語：説明 の形式で）
 
-## 備考・確認事項
+# 備考・確認事項
 （不明点、要確認事項、今後の検討事項。- で始める）
 
 ---
@@ -771,8 +841,16 @@
           // 生成したMarkdownをグローバル変数に保存する（コピーボタン用）
           window.generatedMarkdown = markdownText;
 
-          // 出力カードを表示してMarkdownをレンダリングする
+          // 出力カードを表示する
           document.getElementById('output-card').style.display = 'block';
+
+          // 編集状態をリセットする（再生成時に前回の編集モードが残らないように）
+          var outputContentEl = document.getElementById('output-content');
+          outputContentEl.removeAttribute('contenteditable'); // 編集不可に戻す
+          document.getElementById('edit-btn').style.display = 'inline-block'; // 「編集する」を表示
+          document.getElementById('edit-done-btn').style.display = 'none';    // 「完了」は非表示
+
+          // Markdownをレンダリングして出力エリアに表示する
           renderMarkdown(markdownText);
 
           // 出力エリアまでスクロールする
@@ -1012,15 +1090,47 @@
         }
 
       } // if (copyBtn) end
+
+      // ===== 編集ボタン：クリックでコンテンツを直接編集できるようにする =====
+      var editBtn     = document.getElementById('edit-btn');
+      var editDoneBtn = document.getElementById('edit-done-btn');
+      var outputEditTarget = document.getElementById('output-content');
+
+      // 「編集する」ボタンのクリック処理
+      editBtn.addEventListener('click', function() {
+        // contenteditable を有効にして直接編集できるようにする
+        outputEditTarget.contentEditable = 'true';
+        outputEditTarget.focus(); // 編集エリアにフォーカスを当てる
+        editBtn.style.display     = 'none';          // 「編集する」を隠す
+        editDoneBtn.style.display = 'inline-block';  // 「編集を完了する」を表示する
+      });
+
+      // 「編集を完了する」ボタンのクリック処理
+      editDoneBtn.addEventListener('click', function() {
+        // contenteditable を無効にして閲覧モードに戻す（編集内容はHTMLとして保持される）
+        outputEditTarget.removeAttribute('contenteditable');
+        editDoneBtn.style.display = 'none';          // 「完了」を隠す
+        editBtn.style.display     = 'inline-block';  // 「編集する」を再表示する
+      });
+
     });
 
-    // ===== Markdownテキストを HTML に変換して表示する関数 =====
-    // この関数は外部ライブラリを使わず、正規表現で自前実装しています
+    // ===== Markdownテキストを HTML に変換して #output-content に表示する関数 =====
+    // 外部ライブラリを使わず自前実装（正規表現＋行ごとのパース）
+    //
+    // Markdown → HTML 変換ルール（優先度順）：
+    //   ###  → <h4>  （小見出し）
+    //   ##   → <h3>  （サブセクション見出し）
+    //   #    → <h2>  （セクション大見出し。ページ<h1>はヘッダーが使うためh2から）
+    //   1.   → <ol><li>  （番号付きリスト）
+    //   -  * → <ul><li>  （箇条書きリスト）
+    //   ---  → <hr>       （区切り線）
+    //   空行  → リストを閉じる区切り
+    //   その他→ <p>       （通常テキスト）
+    //   **太字** → <strong>  （インライン書式）
     function renderMarkdown(markdownText) {
       // 出力先の要素を取得する
       var outputContent = document.getElementById('output-content');
-
-      // ===== Markdownを行ごとに処理してHTMLに変換する =====
 
       // 改行で分割して行の配列にする
       var lines = markdownText.split('\n');
@@ -1028,79 +1138,80 @@
       // 変換後のHTML文字列を入れる配列
       var htmlLines = [];
 
-      // リスト（箇条書き）の開始・終了を管理するフラグ
-      var inList = false;
+      // 現在開いているリスト種別を管理するフラグ
+      var inList        = false; // <ul>（箇条書き）が開いているか
+      var inOrderedList = false; // <ol>（番号付き）が開いているか
 
-      // 各行を順番に処理する
+      // ===== 開いているリストタグをすべて閉じる共通処理 =====
+      // 見出し・区切り線・空行が来たときに呼び出す
+      function closeOpenLists() {
+        if (inList)        { htmlLines.push('</ul>'); inList = false; }
+        if (inOrderedList) { htmlLines.push('</ol>'); inOrderedList = false; }
+      }
+
+      // ===== 各行を順番に処理する =====
       for (var i = 0; i < lines.length; i++) {
         var line = lines[i];
 
-        // --- 見出し3（### で始まる行）--- ※ ## より先にチェックしないと誤判定する
+        // --- 見出し3（### ）→ <h4> ---
+        // ※ 長いプレフィックスから先にチェックすることで ## や # との誤判定を防ぐ
         if (line.startsWith('### ')) {
-          if (inList) {
-            htmlLines.push('</ul>'); // リストが開いていれば閉じる
-            inList = false;
-          }
-          // ### を除いたテキストをh3タグで囲む
-          htmlLines.push('<h3>' + escapeHtml(line.slice(4)) + '</h3>');
+          closeOpenLists();
+          htmlLines.push('<h4>' + escapeHtml(line.slice(4)) + '</h4>');
         }
 
-        // --- 見出し2（## で始まる行）---
+        // --- 見出し2（## ）→ <h3> ---
         else if (line.startsWith('## ')) {
-          if (inList) {
-            htmlLines.push('</ul>');
-            inList = false;
-          }
-          // ## を除いたテキストをh2タグで囲む
-          htmlLines.push('<h2>' + escapeHtml(line.slice(3)) + '</h2>');
+          closeOpenLists();
+          htmlLines.push('<h3>' + escapeHtml(line.slice(3)) + '</h3>');
         }
 
-        // --- 箇条書き（- で始まる行）---
+        // --- 見出し1（# ）→ <h2> ---
+        // ※ ## や ### は上のブランチで処理済みなので、ここに来るのは単一 # のみ
+        else if (line.startsWith('# ')) {
+          closeOpenLists();
+          htmlLines.push('<h2>' + escapeHtml(line.slice(2)) + '</h2>');
+        }
+
+        // --- 番号付きリスト（1. 2. 3. ... ）→ <ol><li> ---
+        else if (/^\d+\. /.test(line)) {
+          if (inList) { htmlLines.push('</ul>'); inList = false; } // 箇条書きが開いていれば先に閉じる
+          if (!inOrderedList) { htmlLines.push('<ol>'); inOrderedList = true; }
+          var numText = line.replace(/^\d+\. /, ''); // 「番号. 」を除いたテキストを取り出す
+          htmlLines.push('<li>' + applyInlineMarkdown(escapeHtml(numText)) + '</li>');
+        }
+
+        // --- 箇条書き（- または * ）→ <ul><li> ---
         else if (line.startsWith('- ') || line.startsWith('* ')) {
-          if (!inList) {
-            htmlLines.push('<ul>'); // リストをまだ開いていなければ開く
-            inList = true;
-          }
-          // 「- 」を除いたテキストをliタグで囲む（太字も処理する）
-          var itemText = line.slice(2);
-          htmlLines.push('<li>' + applyInlineMarkdown(escapeHtml(itemText)) + '</li>');
+          if (inOrderedList) { htmlLines.push('</ol>'); inOrderedList = false; } // 番号リストが開いていれば先に閉じる
+          if (!inList) { htmlLines.push('<ul>'); inList = true; }
+          var ulText = line.slice(2); // 「- 」または「* 」を除いたテキストを取り出す
+          htmlLines.push('<li>' + applyInlineMarkdown(escapeHtml(ulText)) + '</li>');
         }
 
-        // --- 区切り線（--- ）---
+        // --- 区切り線（--- のみの行）→ <hr> ---
         else if (line.trim() === '---') {
-          if (inList) {
-            htmlLines.push('</ul>');
-            inList = false;
-          }
+          closeOpenLists();
           htmlLines.push('<hr>');
         }
 
-        // --- 空行 ---
+        // --- 空行 → リストを閉じるトリガー ---
         else if (line.trim() === '') {
-          if (inList) {
-            htmlLines.push('</ul>');
-            inList = false;
-          }
-          htmlLines.push(''); // 空行はそのままスキップ
+          closeOpenLists();
+          htmlLines.push(''); // 空行はそのまま残す（段落間の余白）
         }
 
-        // --- 通常のテキスト行 ---
+        // --- 通常のテキスト行 → <p> ---
         else {
-          if (inList) {
-            htmlLines.push('</ul>');
-            inList = false;
-          }
-          // 通常のテキストをpタグで囲む（太字も処理する）
+          closeOpenLists();
           htmlLines.push('<p>' + applyInlineMarkdown(escapeHtml(line)) + '</p>');
         }
       }
 
-      // リストが末尾まで閉じられていなければ閉じる
-      if (inList) {
-        htmlLines.push('</ul>');
-      }
+      // 末尾で開いたままのリストを閉じる
+      closeOpenLists();
 
-      // 生成したHTML文字列をまとめて出力エリアに表示する
+      // 生成したHTML文字列をまとめて出力エリアに適用する
       outputContent.innerHTML = htmlLines.join('\n');
     }
 

@@ -8,40 +8,40 @@
   <style>
     /* ===== CSS カスタムプロパティ（テーマカラーを一元管理）===== */
     :root {
-      --bg-base:      #0a0a0f;                              /* ページ背景（深い黒）*/
-      --bg-card:      rgba(18, 18, 26, 0.85);               /* カード背景（半透明）*/
-      --cyan:         #00d4ff;                              /* アクセント：シアン */
-      --blue:         #0066ff;                              /* アクセント：ブルー */
-      --grad:         linear-gradient(135deg, #00d4ff, #0066ff); /* メイングラデーション */
-      --text:         #e2e8f0;                              /* 主要テキスト */
-      --text-sub:     #94a3b8;                              /* サブテキスト */
-      --border:       rgba(0, 212, 255, 0.12);              /* 枠線 */
-      --glow-near:    rgba(0, 212, 255, 0.20);              /* 近距離グロー */
-      --glow-far:     rgba(0, 212, 255, 0.07);              /* 遠距離グロー */
+      --bg-base:      #ffffff;                                        /* ページ背景（白）*/
+      --bg-card:      rgba(255, 255, 255, 0.8);                       /* カード背景（白半透明グラスモーフィズム）*/
+      --cyan:         #82ff03;                                        /* アクセント：ライムグリーン */
+      --blue:         #0100be;                                        /* プライマリ：深いブルー */
+      --grad:         linear-gradient(135deg, #0100be, #82ff03);      /* メイングラデーション */
+      --text:         #0a0a0a;                                        /* 主要テキスト */
+      --text-sub:     #4a5568;                                        /* サブテキスト */
+      --border:       rgba(1, 0, 190, 0.14);                          /* 枠線 */
+      --glow-near:    rgba(130, 255, 3, 0.30);                        /* 近距離グロー（ライム）*/
+      --glow-far:     rgba(130, 255, 3, 0.10);                        /* 遠距離グロー */
     }
 
     /* ===== 全体リセット ===== */
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
-    /* ===== ページ全体：ダークテーマ＋光源グラデーション ===== */
+    /* ===== ページ全体：ホワイトベース＋淡い光源グラデーション ===== */
     body {
       font-family: 'Meiryo', 'メイリオ', 'Hiragino Sans', sans-serif;
       font-size: 16px;
       background-color: var(--bg-base);
-      /* 微妙な光源で奥行き感を演出する */
+      /* ブルーとライムの淡いグラデーションで奥行き感を演出する */
       background-image:
-        radial-gradient(ellipse at 15% 15%, rgba(0,102,255,0.07) 0%, transparent 55%),
-        radial-gradient(ellipse at 85% 85%, rgba(0,212,255,0.05) 0%, transparent 55%);
+        radial-gradient(ellipse at 15% 15%, rgba(1,0,190,0.05) 0%, transparent 55%),
+        radial-gradient(ellipse at 85% 85%, rgba(130,255,3,0.06) 0%, transparent 55%);
       color: var(--text);
       min-height: 100vh;
     }
 
-    /* ===== ヘッダー：グラスモーフィズム＋sticky ===== */
+    /* ===== ヘッダー：#0100beベースのグラデーション＋sticky ===== */
     header {
-      background: rgba(10, 10, 15, 0.92);
+      background: linear-gradient(135deg, #0100be 0%, #0a0099 100%);
       backdrop-filter: blur(24px);
       -webkit-backdrop-filter: blur(24px);
-      border-bottom: 1px solid var(--border);
+      border-bottom: 2px solid #82ff03;
       padding: 14px 24px;
       display: flex;
       align-items: center;
@@ -66,26 +66,28 @@
     /* ===== APIキーラベル ===== */
     #api-key-label {
       font-size: 12px;
-      color: var(--text-sub);
+      color: rgba(255,255,255,0.75);
       white-space: nowrap;
     }
 
     /* ===== APIキー入力欄 ===== */
     #api-key-input {
       padding: 8px 14px;
-      border: 1px solid var(--border);
+      border: 1px solid rgba(255,255,255,0.30);
       border-radius: 8px;
       font-size: 13px;
       width: 260px;
-      background: rgba(255,255,255,0.04);
-      color: var(--text);
+      background: rgba(255,255,255,0.15);
+      color: white;
       transition: border-color 0.3s, box-shadow 0.3s;
     }
 
+    #api-key-input::placeholder { color: rgba(255,255,255,0.5); }
+
     #api-key-input:focus {
       outline: none;
-      border-color: var(--cyan);
-      box-shadow: 0 0 0 2px rgba(0,212,255,0.15);
+      border-color: #82ff03;
+      box-shadow: 0 0 0 2px rgba(130,255,3,0.30);
     }
 
     /* ===== メインコンテンツエリア ===== */
@@ -95,7 +97,7 @@
       padding: 0 16px;
     }
 
-    /* ===== グラスモーフィズムカード ===== */
+    /* ===== グラスモーフィズムカード（白半透明）===== */
     .card {
       background: var(--bg-card);
       backdrop-filter: blur(20px);
@@ -105,8 +107,9 @@
       padding: 28px;
       margin-bottom: 28px;
       box-shadow:
-        0 8px 32px rgba(0,0,0,0.5),
-        inset 0 1px 0 rgba(255,255,255,0.04); /* 上端に薄い光沢ライン */
+        0 4px 24px rgba(1,0,190,0.08),
+        0 1px 4px rgba(1,0,190,0.04),
+        inset 0 1px 0 rgba(255,255,255,0.9); /* 上端の白い光沢ライン */
     }
 
     /* 入力カードは CSS アニメーションでフェードインする */
@@ -148,8 +151,8 @@
     #input-textarea, #answer-textarea {
       width: 100%;
       padding: 16px;
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(0, 212, 255, 0.18);
+      background: rgba(1,0,190,0.02);
+      border: 1px solid rgba(1,0,190,0.18);
       border-radius: 12px;
       font-size: 15px;
       font-family: inherit;
@@ -162,17 +165,17 @@
     #input-textarea  { height: 160px; }
     #answer-textarea { height: 200px; }
 
-    /* プレースホルダーの色 */
+    /* プレースホルダーの色：#0100beで落ち着いたブルー */
     #input-textarea::placeholder, #answer-textarea::placeholder {
-      color: rgba(148, 163, 184, 0.4);
+      color: rgba(1, 0, 190, 0.35);
     }
 
-    /* ===== フォーカス時：グローエフェクト（発光）===== */
+    /* ===== フォーカス時：#82ff03のグローエフェクト ===== */
     #input-textarea:focus, #answer-textarea:focus {
       outline: none;
-      border-color: var(--cyan);
+      border-color: #82ff03;
       box-shadow:
-        0 0 0 1px rgba(0,212,255,0.25),   /* 内側リング */
+        0 0 0 1px rgba(130,255,3,0.40),   /* 内側リング */
         0 0 20px var(--glow-near),          /* 近距離グロー */
         0 0 55px var(--glow-far);           /* 遠距離グロー */
     }
@@ -208,32 +211,32 @@
       transition: transform 0.2s ease, box-shadow 0.3s ease, opacity 0.4s ease;
     }
 
-    /* ===== ヒアリングボタン・生成ボタン共通：グラデーション ===== */
+    /* ===== ヒアリングボタン・生成ボタン共通：#0100be ===== */
     #hearing-btn, #generate-btn {
-      background: var(--grad);
+      background: #0100be;
       color: white;
       width: 100%;
       margin-top: 20px;
       font-size: 15px;
       letter-spacing: 0.5px;
-      box-shadow: 0 4px 20px rgba(0, 102, 255, 0.3);
+      box-shadow: 0 4px 20px rgba(1,0,190,0.30);
     }
 
-    /* ホバー時：浮き上がり＋パルスグローアニメーション */
+    /* ホバー時：浮き上がり＋#82ff03のグローエフェクト */
     #hearing-btn:not(:disabled):hover, #generate-btn:not(:disabled):hover {
       transform: translateY(-2px);
-      box-shadow: 0 6px 32px rgba(0,212,255,0.5);
+      box-shadow: 0 6px 32px rgba(130,255,3,0.55);
       animation: btnPulse 2s ease-in-out infinite;
     }
 
     @keyframes btnPulse {
-      0%, 100% { box-shadow: 0 4px 20px rgba(0,102,255,0.3); }
-      50%       { box-shadow: 0 4px 36px rgba(0,212,255,0.7), 0 0 70px rgba(0,212,255,0.2); }
+      0%, 100% { box-shadow: 0 4px 20px rgba(1,0,190,0.30); }
+      50%       { box-shadow: 0 4px 36px rgba(130,255,3,0.65), 0 0 70px rgba(130,255,3,0.20); }
     }
 
     /* 非活性状態 */
     #hearing-btn:disabled, #generate-btn:disabled {
-      background: rgba(255,255,255,0.08);
+      background: rgba(0,0,0,0.08);
       color: var(--text-sub);
       cursor: not-allowed;
       transform: none !important;
@@ -260,11 +263,11 @@
       transform: none !important;
     }
 
-    /* ===== リップルエフェクト（波紋）===== */
+    /* ===== リップルエフェクト（波紋）：#82ff03 ===== */
     .ripple {
       position: absolute;
       border-radius: 50%;
-      background: rgba(255,255,255,0.3);
+      background: rgba(130,255,3,0.55);
       width: 10px;
       height: 10px;
       margin-left: -5px;  /* クリック座標を中心にするための補正 */
@@ -280,9 +283,9 @@
 
     /* ===== 音声入力ボタン ===== */
     #voice-btn {
-      background: rgba(0,212,255,0.07);
-      border: 1px solid rgba(0,212,255,0.22);
-      color: var(--cyan);
+      background: rgba(1,0,190,0.06);
+      border: 1px solid rgba(1,0,190,0.22);
+      color: #0100be;
     }
 
     /* 録音中：赤いパルスアニメーション */
@@ -318,14 +321,18 @@
       margin-bottom: 14px;
     }
 
-    /* 各ドット：グラデーションで塗って波打ちアニメーションをずらす */
+    /* 各ドット：#0100beと#82ff03を交互に配色して波打ちアニメーションをずらす */
     .dot-wave span {
       width: 10px;
       height: 10px;
       border-radius: 50%;
-      background: var(--grad);
       animation: dotWave 1.4s ease-in-out infinite;
     }
+
+    /* 奇数ドット：ブルー */
+    .dot-wave span:nth-child(odd)  { background: #0100be; }
+    /* 偶数ドット：ライムグリーン */
+    .dot-wave span:nth-child(even) { background: #82ff03; }
 
     .dot-wave span:nth-child(1) { animation-delay: 0s;    }
     .dot-wave span:nth-child(2) { animation-delay: 0.18s; }
@@ -357,8 +364,8 @@
     /* ===== 質問個別アイテム（staggered アニメーション）===== */
     .question-item {
       position: relative;              /* ::before グラデーションバーの基準 */
-      background: rgba(0,212,255,0.04);
-      border: 1px solid rgba(0,212,255,0.10);
+      background: rgba(1,0,190,0.03);
+      border: 1px solid rgba(1,0,190,0.10);
       border-radius: 12px;
       padding: 15px 18px 15px 22px;   /* 左にグラデーションバー分の余白 */
       margin-bottom: 10px;
@@ -422,14 +429,14 @@
       margin: 24px 0 10px;
     }
 
-    /* ===== セクション間のグラデーション区切りライン ===== */
+    /* ===== セクション間のグラデーション区切りライン：#82ff03 ===== */
     .gradient-divider {
       height: 1px;
       background: linear-gradient(
         90deg,
         transparent,
-        rgba(0,212,255,0.22) 30%,
-        rgba(0,102,255,0.22) 70%,
+        rgba(130,255,3,0.50) 30%,
+        rgba(1,0,190,0.20) 70%,
         transparent
       );
       margin: 0 0 28px;
@@ -447,25 +454,25 @@
 
     /* ===== コピーボタン ===== */
     #copy-btn {
-      background: rgba(0,212,255,0.08);
-      color: var(--cyan);
-      border: 1px solid rgba(0,212,255,0.22);
+      background: rgba(1,0,190,0.07);
+      color: #0100be;
+      border: 1px solid rgba(1,0,190,0.22);
       padding: 8px 18px;
       border-radius: 8px;
       font-size: 13px;
       font-weight: bold;
       cursor: pointer;
-      transition: background 0.2s;
+      transition: background 0.2s, box-shadow 0.2s;
     }
 
-    #copy-btn:hover  { background: rgba(0,212,255,0.16); }
-    #copy-btn.copied { background: rgba(0,212,255,0.25); color: #7fffd4; }
+    #copy-btn:hover  { background: rgba(1,0,190,0.13); box-shadow: 0 0 10px rgba(130,255,3,0.35); }
+    #copy-btn.copied { background: rgba(130,255,3,0.18); color: #0a6600; border-color: rgba(130,255,3,0.45); }
 
     /* ===== 編集ボタン ===== */
     #edit-btn {
-      background: rgba(148,163,184,0.07);
+      background: rgba(74,85,104,0.07);
       color: var(--text-sub);
-      border: 1px solid rgba(148,163,184,0.16);
+      border: 1px solid rgba(74,85,104,0.16);
       padding: 8px 16px;
       border-radius: 8px;
       font-size: 13px;
@@ -474,13 +481,13 @@
       transition: all 0.2s;
     }
 
-    #edit-btn:hover { background: rgba(148,163,184,0.15); color: var(--text); }
+    #edit-btn:hover { background: rgba(1,0,190,0.08); color: #0100be; border-color: rgba(1,0,190,0.25); }
 
     /* ===== 編集完了ボタン ===== */
     #edit-done-btn {
-      background: rgba(0,212,255,0.08);
-      color: var(--cyan);
-      border: 1px solid rgba(0,212,255,0.22);
+      background: rgba(1,0,190,0.07);
+      color: #0100be;
+      border: 1px solid rgba(1,0,190,0.22);
       padding: 8px 16px;
       border-radius: 8px;
       font-size: 13px;
@@ -489,7 +496,7 @@
       transition: background 0.2s;
     }
 
-    #edit-done-btn:hover { background: rgba(0,212,255,0.16); }
+    #edit-done-btn:hover { background: rgba(1,0,190,0.13); }
 
     /* ===== 出力コンテンツのMarkdownスタイル ===== */
     #output-content {
@@ -515,7 +522,7 @@
     #output-content h3 {
       font-size: 15px;
       font-weight: bold;
-      color: rgba(0,212,255,0.85);
+      color: #0100be;
       margin: 18px 0 8px;
     }
 
@@ -533,12 +540,12 @@
     }
 
     #output-content li       { margin-bottom: 6px; line-height: 1.75; }
-    #output-content strong   { color: #a0cfff; font-weight: bold; }
+    #output-content strong   { color: #0100be; font-weight: bold; }
 
     #output-content hr {
       border: none;
       height: 1px;
-      background: linear-gradient(90deg, transparent, var(--border), transparent);
+      background: linear-gradient(90deg, transparent, rgba(130,255,3,0.50), transparent);
       margin: 20px 0;
     }
 
@@ -546,7 +553,7 @@
 
     /* 編集中のスタイル */
     #output-content[contenteditable="true"] {
-      border: 1px dashed rgba(0,212,255,0.35);
+      border: 1px dashed rgba(130,255,3,0.55);
       border-radius: 10px;
       padding: 16px;
       outline: none;
@@ -569,7 +576,7 @@
     footer {
       text-align: center;
       padding: 36px;
-      color: rgba(148,163,184,0.3);
+      color: rgba(1,0,190,0.30);
       font-size: 11px;
       letter-spacing: 1px;
     }
